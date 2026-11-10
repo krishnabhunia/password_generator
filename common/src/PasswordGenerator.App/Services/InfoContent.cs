@@ -58,8 +58,8 @@ public static class InfoContent
         # Under the hood
         ## How a password is made
         - Random numbers come from the operating system's cryptographic generator, not from a simple formula.
-        - The minimum of each element is placed first, the rest is drawn from every chosen character, and the result is shuffled.
-        - The strength figure is length × log2(number of possible characters), shown in bits.
+        - Every password that fits your choices (length, elements, minimum of each) is equally likely.
+        - The strength figure is log2 of the number of different passwords your choices allow, shown in bits. Asking for many of one element lowers it.
         ## What is stored
         - Your choices (elements, minimums, length, design, update options) are saved in the settings file.
         - Passwords are never written to disk and never sent anywhere. Copy puts the password on the clipboard only.

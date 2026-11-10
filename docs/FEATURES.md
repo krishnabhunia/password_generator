@@ -10,7 +10,8 @@
 
 ## Reading and using it
 - Letters, digits and special characters are shown in different colours.
-- A strength meter with a label (Weak, Fair, Strong, Very strong) and the figure in bits.
+- A strength meter with a label (Weak, Fair, Strong, Very strong) and the figure in bits. It counts the passwords your choices really allow, minimums included.
+- Every password that fits your choices is equally likely.
 - Copy puts the password on the clipboard.
 - Passwords are never saved to disk and never sent anywhere.
 
