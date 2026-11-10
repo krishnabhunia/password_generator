@@ -20,7 +20,9 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             AppState.Load();
-            var vm = new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion);
+            // The self-test saves pictures of the window, so it shows fixed sample passwords, never real ones.
+            var vm = new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion,
+                AppState.SmokeTestDir is null ? null : new SampleRandomSource());
             var window = new MainWindow(vm);
             desktop.MainWindow = window;
             if (AppState.SmokeTestDir is { } dir)

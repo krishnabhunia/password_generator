@@ -7,4 +7,4 @@
 - After a UI change, run the self-test and look at the pictures:
   `dotnet run --project common/src/PasswordGenerator.App -- --smoke-test <folder> --data-dir <folder>`
   It fails when text or a control is cut off in any design.
-- Passwords must never be written to disk, logged or sent anywhere.
+- Passwords must never be written to disk, logged or sent anywhere. The self-test saves pictures, so it runs on `SampleRandomSource` (a fixed sequence) and shows sample passwords only.

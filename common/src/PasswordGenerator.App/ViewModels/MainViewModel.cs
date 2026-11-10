@@ -6,7 +6,7 @@ namespace PasswordGenerator.App.ViewModels;
 
 public sealed class MainViewModel : ObservableObject
 {
-    private readonly IRandomSource _random = new CryptoRandomSource();
+    private readonly IRandomSource _random;
     private readonly DispatcherTimer _copiedTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool _loading;
     private int _length;
@@ -19,8 +19,10 @@ public sealed class MainViewModel : ObservableObject
     private string? _updateText;
     private bool _updateBusy;
 
-    public MainViewModel(GeneratorOptions options, string versionText)
+    /// <param name="random">Only the self-test passes one, so its pictures never hold a real password.</param>
+    public MainViewModel(GeneratorOptions options, string versionText, IRandomSource? random = null)
     {
+        _random = random ?? new CryptoRandomSource();
         var o = options.Normalized();
         VersionText = versionText;
         _loading = true;

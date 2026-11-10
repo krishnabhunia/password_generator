@@ -12,6 +12,21 @@ namespace PasswordGenerator.App.Services;
 /// Self-test used by the pipeline: opens every design and window, checks that nothing is cut off,
 /// and saves a picture of each. Start the app with --smoke-test &lt;folder&gt;.
 /// </summary>
+/// <summary>
+/// A fixed, repeatable sequence for the self-test. It is NOT random and must never be used for a real password:
+/// the pictures the self-test saves and publishes show only these sample passwords.
+/// </summary>
+public sealed class SampleRandomSource : PasswordGenerator.Core.IRandomSource
+{
+    private uint _state = 20261110;
+
+    public int Next(int exclusiveMax)
+    {
+        _state = _state * 1664525 + 1013904223;
+        return (int)((_state >> 8) % (uint)exclusiveMax);
+    }
+}
+
 public static class SmokeTest
 {
     private const double MaxHeight = 900; // must fit a 1080-pixel-high screen with the taskbar
