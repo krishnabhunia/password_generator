@@ -35,3 +35,7 @@ Approved by Krishna on 10 Nov 2026: the two-pane option, typing "as in KeePass" 
 | Typing into another window | `common/src/PasswordGenerator.App/Services/KeyboardTyper.cs` |
 
 The window uses the colours of the design chosen in Settings. It grows taller when the typing order needs more than two rows.
+
+### Update, 10 Nov 2026 (released in 1.2.0)
+
+Krishna changed two things after trying 1.1.0: the current password must stay until he changes it himself, so the "Did the change work?" step with Yes and No was removed; and the window gained two typing delays (between characters, between tabs). After typing, the window is ready again and shows one line with what was typed.

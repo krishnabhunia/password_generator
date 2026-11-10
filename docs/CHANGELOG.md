@@ -1,5 +1,11 @@
 # What's new
 
+## 1.2.0
+- Change a password: the current password now stays until you change it yourself. The app never replaces it.
+- The "Did the change work?" question with Yes and No is gone. After typing, the window is simply ready again.
+- New: delay between characters and delay between tabs, each with − and +, remembered between runs.
+- The new password stays on screen after typing, so you can copy it.
+
 ## 1.1.0
 - New Change a password window (button under Copy and Regenerate, key icon at the bottom, Ctrl+K).
 - It types your current password and the new one into the website or app you used last, in an order you choose, the way KeePass auto-type does.
