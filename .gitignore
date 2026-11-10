@@ -1,0 +1,11 @@
+bin/
+obj/
+out/
+dist/
+.vs/
+*.user
+*.suo
+__pycache__/
+*.pyc
+TestResults/
+release-plan.json
