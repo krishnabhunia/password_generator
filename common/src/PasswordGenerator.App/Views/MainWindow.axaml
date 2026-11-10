@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PasswordGenerator.App.ViewModels"
+        x:Class="PasswordGenerator.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Password Generator"
+        Icon="/Assets/app.ico"
+        Width="980"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Pg.WindowBg}"
+        Foreground="{DynamicResource Pg.Text}"
+        FontSize="14">
+  <DockPanel>
+    <!-- Shown only when a newer version was found on GitHub -->
+    <Border DockPanel.Dock="Top" IsVisible="{Binding UpdateVisible}" Background="{DynamicResource Pg.PaneBg}"
+            BorderBrush="{DynamicResource Pg.Divider}" BorderThickness="0,0,0,1" Padding="16,8">
+      <Button x:Name="UpdateButton" Classes="primary" HorizontalAlignment="Right" Height="32" Padding="14,0" Command="{Binding UpdateCommand}">
+        <TextBlock Text="{Binding UpdateText}" VerticalAlignment="Center" />
+      </Button>
+    </Border>
+
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Pg.Divider}" BorderThickness="0,1,0,0" Padding="24,0,14,0">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto" Height="36">
+        <TextBlock Classes="sub" Text="Passwords are never saved or sent." TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Classes="sub" Text="{Binding VersionText}" Margin="8,0,6,0" />
+        <Button Grid.Column="2" Classes="icon" Command="{Binding InfoCommand}" AutomationProperties.Name="Info" ToolTip.Tip="Info (F1)">
+          <Viewbox Width="16" Height="16">
+            <Canvas Width="24" Height="24">
+              <Path Classes="icon" Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Pg.SubText}" />
+            </Canvas>
+          </Viewbox>
+        </Button>
+        <Button Grid.Column="3" Classes="icon" Command="{Binding SettingsCommand}" AutomationProperties.Name="Settings" ToolTip.Tip="Settings">
+          <Viewbox Width="16" Height="16">
+            <Canvas Width="24" Height="24">
+              <Path Classes="icon" Data="{StaticResource Icon.Settings}" Stroke="{DynamicResource Pg.SubText}" />
+            </Canvas>
+          </Viewbox>
+        </Button>
+      </Grid>
+    </Border>
+
+    <ContentControl x:Name="DesignHost" />
+  </DockPanel>
+</Window>

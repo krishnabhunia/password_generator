@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PasswordGenerator.App.ViewModels"
+             x:Class="PasswordGenerator.App.Views.ElementRow"
+             x:DataType="vm:ElementVm">
+  <!-- Switch, name, sample, then the minimum count with − and + -->
+  <Grid ColumnDefinitions="Auto,Auto,*,Auto,26,Auto" Height="42">
+    <ToggleSwitch Classes="bare" IsChecked="{Binding IsOn}" AutomationProperties.Name="{Binding ToggleLabel}" />
+    <TextBlock Grid.Column="1" Classes="h" Text="{Binding Label}" Margin="10,0,0,0" />
+    <TextBlock Grid.Column="2" Classes="sub mono" FontSize="13" Text="{Binding Sample}" Margin="12,0,0,0" />
+    <Button Grid.Column="3" Classes="stepper" Command="{Binding DecCommand}" AutomationProperties.Name="{Binding DecLabel}">
+      <TextBlock Text="−" />
+    </Button>
+    <TextBlock Grid.Column="4" Classes="num" Text="{Binding Min}" />
+    <Button Grid.Column="5" Classes="stepper" Command="{Binding IncCommand}" AutomationProperties.Name="{Binding IncLabel}">
+      <TextBlock Text="+" />
+    </Button>
+  </Grid>
+</UserControl>

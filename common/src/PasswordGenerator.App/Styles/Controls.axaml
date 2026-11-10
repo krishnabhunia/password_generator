@@ -1,0 +1,299 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Text -->
+  <Style Selector="TextBlock.h">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.sub">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{StaticResource Pg.Mono}" />
+  </Style>
+  <Style Selector="TextBlock.num">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Password characters: letters, digits and special characters in different colours -->
+  <Style Selector="TextBlock.pwd">
+    <Setter Property="FontFamily" Value="{StaticResource Pg.Mono}" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Letter}" />
+  </Style>
+  <Style Selector="TextBlock.pwd.digit">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Digit}" />
+  </Style>
+  <Style Selector="TextBlock.pwd.symbol">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Symbol}" />
+  </Style>
+
+  <!-- Surfaces -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Pg.CardBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="16,12" />
+  </Style>
+  <Style Selector="Border.pwdbox">
+    <Setter Property="Background" Value="{DynamicResource Pg.PwdBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="Border.divider">
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Pg.Divider}" />
+  </Style>
+
+  <!-- Icons drawn with a line, in the colour of the button they sit in -->
+  <Style Selector="Path.icon">
+    <Setter Property="StrokeThickness" Value="2" />
+    <Setter Property="StrokeLineCap" Value="Round" />
+    <Setter Property="StrokeJoin" Value="Round" />
+  </Style>
+
+  <!-- Buttons -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource Pg.Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.OnAccent}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.AccentHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.OnAccent}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.AccentHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.OnAccent}" />
+    </Style>
+    <Style Selector="^:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.Accent}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.OnAccent}" />
+      <Setter Property="Opacity" Value="0.55" />
+    </Style>
+  </Style>
+
+  <Style Selector="Button.secondary, Button.stepper">
+    <Setter Property="Background" Value="{DynamicResource Pg.ControlBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Text}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.ControlBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.Text}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.ControlBorder}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.Text}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+    </Style>
+  </Style>
+  <Style Selector="Button.stepper">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    </Style>
+  </Style>
+
+  <Style Selector="Button.icon">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+    </Style>
+  </Style>
+
+  <!-- A special-character chip: outlined when off, filled and bold when on -->
+  <Style Selector="Button.chip">
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="3" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="FontFamily" Value="{StaticResource Pg.Mono}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOffBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOffFg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.ChipOffBorder}" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOffFg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.ControlBorder}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOffFg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+    </Style>
+  </Style>
+  <Style Selector="Button.chip.on">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.AccentHover}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.AccentHover}" />
+    </Style>
+  </Style>
+
+  <!-- An element tile in the Compact design -->
+  <Style Selector="ToggleButton.tile">
+    <Setter Property="Height" Value="72" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOffBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.ChipOffBorder}" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.ControlBorder}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.SubText}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+    </Style>
+  </Style>
+  <Style Selector="ToggleButton.tile:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+  </Style>
+  <Style Selector="ToggleButton.tile:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.AccentHover}" />
+  </Style>
+  <Style Selector="ToggleButton.tile:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.AccentHover}" />
+  </Style>
+
+  <!-- Strength meter -->
+  <Style Selector="ProgressBar.meter">
+    <Setter Property="Height" Value="6" />
+    <Setter Property="MinHeight" Value="6" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Pg.MeterTrack}" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Weak}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="ProgressBar.meter.fair">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Fair}" />
+  </Style>
+  <Style Selector="ProgressBar.meter.strong">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Strong}" />
+  </Style>
+  <Style Selector="ProgressBar.meter.vstrong">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.VeryStrong}" />
+  </Style>
+  <Style Selector="TextBlock.strength">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Weak}" />
+  </Style>
+  <Style Selector="TextBlock.strength.fair">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Fair}" />
+  </Style>
+  <Style Selector="TextBlock.strength.strong">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Strong}" />
+  </Style>
+  <Style Selector="TextBlock.strength.vstrong">
+    <Setter Property="Foreground" Value="{DynamicResource Pg.VeryStrong}" />
+  </Style>
+
+  <!-- The on/off switch has no text beside it -->
+  <Style Selector="ToggleSwitch.bare">
+    <Setter Property="OnContent" Value="{x:Null}" />
+    <Setter Property="OffContent" Value="{x:Null}" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Info window text -->
+  <Style Selector="TextBlock.doc">
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="0,2" />
+  </Style>
+  <Style Selector="TextBlock.doc.h1">
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,4,0,6" />
+  </Style>
+  <Style Selector="TextBlock.doc.h2">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,12,0,4" />
+  </Style>
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Padding" Value="10,0" />
+  </Style>
+</Styles>

@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PasswordGenerator.App.ViewModels"
+             x:Class="PasswordGenerator.App.Views.CompactView"
+             x:DataType="vm:MainViewModel">
+  <!-- Design "Compact": a small window with four element tiles -->
+  <StackPanel Margin="16,12,16,14" Spacing="12">
+
+    <StackPanel Spacing="8">
+      <Border Classes="pwdbox" MinHeight="76" Padding="14,12">
+        <Panel>
+          <ItemsControl ItemsSource="{Binding Chars}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CharVm">
+                <TextBlock Classes="pwd" Classes.digit="{Binding IsDigit}" Classes.symbol="{Binding IsSymbol}" FontSize="18" Text="{Binding Text}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="sub" FontSize="13" VerticalAlignment="Top" TextWrapping="Wrap" IsVisible="{Binding IsEmpty}"
+                     Text="Switch on at least one element." />
+        </Panel>
+      </Border>
+      <Grid ColumnDefinitions="*,10,104,8,76" Height="36">
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="strength" Classes.fair="{Binding IsFair}" Classes.strong="{Binding IsStrong}" Classes.vstrong="{Binding IsVeryStrong}" Text="{Binding StrengthLabel}" />
+            <TextBlock Classes="sub" Text="{Binding BitsText}" />
+          </StackPanel>
+          <ProgressBar Classes="meter" Classes.fair="{Binding IsFair}" Classes.strong="{Binding IsStrong}" Classes.vstrong="{Binding IsVeryStrong}" Value="{Binding MeterFraction}" />
+        </StackPanel>
+        <Button Grid.Column="2" Classes="primary" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Command="{Binding CopyCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Viewbox Width="15" Height="15">
+              <Canvas Width="24" Height="24">
+                <Path Classes="icon" Data="{StaticResource Icon.Copy}" Stroke="{Binding $parent[Button].Foreground}" />
+              </Canvas>
+            </Viewbox>
+            <TextBlock Text="{Binding CopyShortLabel}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <Button Grid.Column="4" Classes="secondary" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Command="{Binding RegenerateCommand}" AutomationProperties.Name="Regenerate">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Viewbox Width="15" Height="15">
+              <Canvas Width="24" Height="24">
+                <Path Classes="icon" Data="{StaticResource Icon.Refresh}" Stroke="{Binding $parent[Button].Foreground}" />
+              </Canvas>
+            </Viewbox>
+            <TextBlock Text="New" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="Auto,*,44" Height="36">
+      <TextBlock Classes="h" Text="Length" />
+      <Slider Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Minimum="4" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding LengthValue}" AutomationProperties.Name="Password length" />
+      <Border Grid.Column="2" Height="32" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Pg.ControlBg}" BorderBrush="{DynamicResource Pg.CardBorder}">
+        <TextBlock Classes="num" FontSize="16" Text="{Binding Length}" />
+      </Border>
+    </Grid>
+
+    <StackPanel Spacing="6">
+      <Grid ColumnDefinitions="*,Auto" Height="20">
+        <TextBlock Classes="h" Text="Elements to use" />
+        <TextBlock Grid.Column="1" Classes="sub" Text="Minimum of each below" />
+      </Grid>
+      <ItemsControl ItemsSource="{Binding AllElements}" Margin="-4,0">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ElementVm">
+            <StackPanel Spacing="6" Margin="4,0">
+              <ToggleButton Classes="tile" IsChecked="{Binding IsOn}" AutomationProperties.Name="{Binding ToggleLabel}">
+                <Panel>
+                  <Viewbox Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,5,0" IsVisible="{Binding IsOn}">
+                    <Canvas Width="24" Height="24">
+                      <Path Classes="icon" StrokeThickness="3" Data="{StaticResource Icon.Check}" Stroke="{DynamicResource Pg.ChipOnFg}" />
+                    </Canvas>
+                  </Viewbox>
+                  <StackPanel Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Classes="mono" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Text="{Binding Sample}" />
+                    <TextBlock FontSize="11" HorizontalAlignment="Center" Text="{Binding ShortLabel}" />
+                  </StackPanel>
+                </Panel>
+              </ToggleButton>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="2">
+                <Button Classes="stepper" Width="28" Height="28" CornerRadius="6" Command="{Binding DecCommand}" AutomationProperties.Name="{Binding DecLabel}">
+                  <TextBlock Text="−" />
+                </Button>
+                <TextBlock Classes="num" Width="22" TextAlignment="Center" Text="{Binding Min}" />
+                <Button Classes="stepper" Width="28" Height="28" CornerRadius="6" Command="{Binding IncCommand}" AutomationProperties.Name="{Binding IncLabel}">
+                  <TextBlock Text="+" />
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <StackPanel Spacing="4">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" Height="26">
+        <TextBlock Classes="h" Text="Special characters" />
+        <TextBlock Grid.Column="1" Classes="sub" Text="{Binding SymbolCountText}" Margin="8,0,0,0" />
+        <Button Grid.Column="2" Classes="link" Padding="8,4" Command="{Binding SelectAllSymbolsCommand}">
+          <TextBlock Text="All" />
+        </Button>
+        <Button Grid.Column="3" Classes="link" Padding="8,4" Command="{Binding ClearSymbolsCommand}">
+          <TextBlock Text="Clear" />
+        </Button>
+      </Grid>
+      <ItemsControl ItemsSource="{Binding Symbols}" Margin="-3">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="7" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:SymbolVm">
+            <Button Classes="chip" Height="38" CornerRadius="6" Classes.on="{Binding IsActive}" Command="{Binding ToggleCommand}" AutomationProperties.Name="{Binding Label}">
+              <TextBlock Text="{Binding Char}" />
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+  </StackPanel>
+</UserControl>

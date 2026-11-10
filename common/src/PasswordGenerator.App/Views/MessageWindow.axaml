@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordGenerator.App.Views.MessageWindow"
+        Icon="/Assets/app.ico"
+        Width="440" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Pg.WindowBg}" Foreground="{DynamicResource Pg.Text}" FontSize="14">
+  <StackPanel Margin="24" Spacing="20">
+    <SelectableTextBlock x:Name="Body" TextWrapping="Wrap" />
+    <Button Classes="primary" HorizontalAlignment="Right" Width="96" Height="34" IsDefault="True" IsCancel="True" Click="OnOk">
+      <TextBlock Text="OK" />
+    </Button>
+  </StackPanel>
+</Window>

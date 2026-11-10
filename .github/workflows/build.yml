@@ -1,0 +1,190 @@
+# One workflow for every platform (Windows today; macOS and Android join when they have source).
+#
+#   pull request -> beta   x.y.z-betaNNN  (a pre-release, built from the pull request's commit)
+#   main         -> full   x.y.z          (the release users update to)
+#
+# The run's Artifacts box holds exactly one file: PasswordGenerator_<version>.zip
+#   portable/PasswordGenerator_<version>.exe      one file, nothing to install
+#   windows-x64/PasswordGenerator_<version>.exe   set-up program
+#   macOS/…dmg and Android/…apk are added by common/scripts/release.py when those builds exist.
+name: Password Generator build and release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - common/**
+      - windows/**
+      - macOS/**
+      - android/**
+      - docs/FEATURES.md
+      - docs/CHANGELOG.md
+      - .github/**
+  push:
+    branches: [main]
+    paths:
+      - common/**
+      - windows/**
+      - macOS/**
+      - android/**
+      - docs/FEATURES.md
+      - docs/CHANGELOG.md
+      - .github/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Beta numbers are handed out one build at a time, so runs of the same kind wait for each other.
+concurrency:
+  group: password-generator-${{ github.event_name == 'pull_request' && 'beta' || 'stable' }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build, test and release
+    runs-on: windows-latest
+    timeout-minutes: 45
+    # Pull requests from forks cannot publish, so they are not built here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Test the release scripts
+        shell: bash
+        run: python common/scripts/annotate.py "Release script tests" -- python -m unittest discover -s common/scripts -p "test_*.py"
+
+      - name: Work out the version
+        id: plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --tags --force --quiet origin
+          python common/scripts/release.py plan --event-name "$GITHUB_EVENT_NAME" --event "$GITHUB_EVENT_PATH" \
+            --ref "$GITHUB_REF" --head "$HEAD_SHA" --repo "$GITHUB_REPOSITORY" --reserve
+          echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Check docs/FEATURES.md
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python common/scripts/release.py features --plan release-plan.json --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA"
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Unit tests
+        run: python common/scripts/annotate.py "Unit tests" -- dotnet test common/tests/PasswordGenerator.Core.Tests/PasswordGenerator.Core.Tests.csproj -c Release
+
+      - name: Build the portable app
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          SOURCE_PR: ${{ github.event.pull_request.number }}
+          BUILD_TIME: ${{ steps.plan.outputs.built }}
+          RELEASE_TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          python common/scripts/annotate.py "Build" -- dotnet publish common/src/PasswordGenerator.App/PasswordGenerator.App.csproj -c Release -r win-x64 -o out/portable "-p:PwgVersion=$env:VERSION" "-p:PwgSourcePr=$env:SOURCE_PR" "-p:PwgSourceCommit=$env:HEAD_SHA" "-p:PwgBuildTimeUtc=$env:BUILD_TIME" "-p:PwgReleaseTag=$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $found = (Get-Item out/portable/PasswordGenerator.exe).VersionInfo.ProductVersion
+          if ($found -ne $env:VERSION) {
+            Write-Output "::error title=Build::The program reports version '$found', expected '$env:VERSION'"
+            exit 1
+          }
+          $mb = [math]::Round((Get-Item out/portable/PasswordGenerator.exe).Length / 1MB, 1)
+          Write-Output "::notice title=Build::PasswordGenerator.exe $env:VERSION, $mb MB"
+
+      # Opens every design and window, fails when anything is cut off, and saves a picture of each.
+      - name: Self-test of the app in every design
+        timeout-minutes: 10
+        run: |
+          $shots = Join-Path $env:RUNNER_TEMP 'smoke'
+          $data = Join-Path $env:RUNNER_TEMP 'smoke-data'
+          $p = Start-Process out/portable/PasswordGenerator.exe -ArgumentList @('--smoke-test', $shots, '--data-dir', $data) -PassThru
+          $null = $p.Handle
+          if (-not $p.WaitForExit(240000)) {
+            $p.Kill()
+            Write-Output "::error title=Self-test::The app did not finish within 4 minutes"
+            exit 1
+          }
+          $file = Join-Path $shots 'smoke-result.txt'
+          $result = if (Test-Path $file) { Get-Content $file -Raw } else { "No result file was written (exit code $($p.ExitCode))" }
+          $line = $result.Replace('%', '%25').Replace("`r", '').Replace("`n", '%0A')
+          if ($p.ExitCode -ne 0 -or -not $result.StartsWith('PASSED')) {
+            Write-Output "::error title=Self-test failed::$line"
+            exit 1
+          }
+          Write-Output "::notice title=Self-test::$line"
+          Compress-Archive -Path (Join-Path $shots '*.png') -DestinationPath out/screenshots.zip
+
+      - name: Build the set-up program
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          BASE_VERSION: ${{ steps.plan.outputs.base }}
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
+          if (-not (Test-Path $iscc)) {
+            Write-Output "::error title=Set-up program::Inno Setup could not be installed on the build machine"
+            exit 1
+          }
+          python common/scripts/annotate.py "Set-up program" -- $iscc /Q "/DMyAppVersion=$env:BASE_VERSION" "/DMyDisplayVersion=$env:VERSION" "/DMyPackageName=PasswordGenerator_$env:VERSION" "/DSourceDir=$PWD\out\portable" "/DOutputDir=$PWD\out\installer" windows/installer/PasswordGenerator.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Install, check and uninstall
+        timeout-minutes: 10
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          function Fail($message) { Write-Output "::error title=Install test::$message"; exit 1 }
+          $dir = Join-Path $env:RUNNER_TEMP 'pwg-install'
+          $setup = Join-Path $PWD "out\installer\PasswordGenerator_$env:VERSION.exe"
+          $p = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$dir`"") -PassThru
+          $null = $p.Handle
+          if (-not $p.WaitForExit(240000)) { $p.Kill(); Fail 'The set-up program did not finish within 4 minutes' }
+          if ($p.ExitCode -ne 0) { Fail "The set-up program ended with code $($p.ExitCode)" }
+          $exe = Join-Path $dir 'PasswordGenerator.exe'
+          $uninstall = Join-Path $dir 'unins000.exe'
+          if (-not (Test-Path $exe)) { Fail 'PasswordGenerator.exe was not installed' }
+          if (-not (Test-Path $uninstall)) { Fail 'The uninstaller was not installed' }
+          $found = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($found -ne $env:VERSION) { Fail "The installed program reports version '$found', expected '$env:VERSION'" }
+          Start-Process $uninstall -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait
+          # The uninstaller finishes its work from a temporary copy, so give it a moment.
+          foreach ($i in 1..30) { if (-not (Test-Path $exe)) { break }; Start-Sleep -Seconds 1 }
+          if (Test-Path $exe) { Fail 'PasswordGenerator.exe is still there after uninstalling' }
+          Write-Output "::notice title=Install test::Installed $env:VERSION for the current user, checked it and uninstalled it"
+
+      - name: Package into one ZIP
+        shell: bash
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          python common/scripts/release.py package --version "$VERSION" \
+            --portable out/portable/PasswordGenerator.exe \
+            --installer "out/installer/PasswordGenerator_$VERSION.exe" --out dist
+
+      - name: Upload the ZIP (the only file in the Artifacts box)
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          path: dist/PasswordGenerator_${{ steps.plan.outputs.version }}.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish the beta or the full release
+        if: steps.plan.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python common/scripts/release.py publish --plan release-plan.json --dist dist --screenshots out/screenshots.zip
