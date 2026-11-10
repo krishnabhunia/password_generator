@@ -1,5 +1,12 @@
 # What's new
 
+## 1.1.0
+- New Change a password window (button under Copy and Regenerate, key icon at the bottom, Ctrl+K).
+- It types your current password and the new one into the website or app you used last, in an order you choose, the way KeePass auto-type does.
+- Your current password is kept after a restart, encrypted with your Windows sign-in. Forget it removes it.
+- After a successful change, one click makes the new password the current one.
+- The line at the bottom now reads "Passwords are never sent anywhere", because the current password is stored on this PC.
+
 ## 1.0.0
 - First version of Password Generator for Windows.
 - Choose the elements to use, pick special characters one by one, set the length and a minimum of each element.

@@ -13,7 +13,20 @@
 - A strength meter with a label (Weak, Fair, Strong, Very strong) and the figure in bits. It counts the passwords your choices really allow, minimums included.
 - Every password that fits your choices is equally likely.
 - Copy puts the password on the clipboard.
-- Passwords are never saved to disk and never sent anywhere.
+- Generated passwords are never saved to disk, and no password is ever sent anywhere.
+
+## Changing a password
+- A Change a password window opens from the "Change a password…" button ("Change…" in the Fluent Light design), the key icon at the bottom, or Ctrl+K.
+- Paste the password you use now. It is hidden by default, with Show, Paste and Forget it.
+- That current password is kept after a restart, stored on this PC only and encrypted with your Windows sign-in.
+- The new password is the one from the generator; New makes another.
+- A typing order you build yourself from Current, New, Tab, Enter and Wait 1 s. Add, remove and move the steps; the order is remembered.
+- "Type it into that window" switches to the window you used last and types the order into it at once, as KeePass does.
+- The window that will receive the typing is named before you press the button.
+- Typing stops by itself if another window comes to the front, and Esc stops it too.
+- If a different window has come to the front since it was named, nothing is typed and the new window is shown for you to check.
+- Afterwards "Did the change work?" Yes makes the password that was typed the current one and generates a fresh new one.
+- The typed password is held until you answer, even if the generator makes another one, and the window does not close before you answer.
 
 ## Designs
 - Two-pane Light (the default): choices on the left, password on the right.

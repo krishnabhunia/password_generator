@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel _vm;
     private readonly UpdateService _updates = new();
     private bool _closingForUpdate;
+    private ChangePasswordWindow? _changeWindow;
 
     // The XAML loader needs a constructor without arguments.
     public MainWindow() : this(new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion)) { }
@@ -23,13 +24,15 @@ public partial class MainWindow : Window
         vm.CopyHandler = text => Clipboard is { } clipboard ? clipboard.SetTextAsync(text) : Task.CompletedTask;
         vm.InfoRequested += ShowInfo;
         vm.SettingsRequested += ShowSettings;
+        vm.ChangePasswordRequested += () => ShowChangePassword();
         vm.UpdateRequested += async () => await InstallUpdateAsync();
         vm.OptionsChanged += () => AppState.Settings = AppState.Settings with { Options = vm.CurrentOptions() };
         ApplyDesign(AppState.Settings.Design);
         KeyDown += (_, e) =>
         {
-            if (e.Key != Key.F1) return;
-            ShowInfo();
+            if (e.Key == Key.F1) ShowInfo();
+            else if (e.Key == Key.K && e.KeyModifiers == KeyModifiers.Control) ShowChangePassword();
+            else return;
             e.Handled = true;
         };
         Opened += async (_, _) =>
@@ -110,6 +113,21 @@ public partial class MainWindow : Window
                 "The update could not be installed.\n\n" + e.Message + "\n\nYou can download it from the Releases page instead:\n" + Core.UpdateFeed.ReleasesPage)
                 .ShowDialog(this);
         }
+    }
+
+    /// <summary>Opens the Change a password window, or brings it forward when it is already open.</summary>
+    public ChangePasswordWindow ShowChangePassword(IKeyboardTyper? typer = null)
+    {
+        if (_changeWindow is { } open)
+        {
+            open.Activate();
+            return open;
+        }
+        var window = new ChangePasswordWindow(_vm, typer);
+        window.Closed += (_, _) => _changeWindow = null;
+        _changeWindow = window;
+        window.Show(this);
+        return window;
     }
 
     private void ShowInfo() => new InfoWindow().ShowDialog(this);

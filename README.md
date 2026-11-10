@@ -9,7 +9,8 @@ A small Windows app that makes strong random passwords. You choose what goes in,
 - Password length from 4 to 64, and a minimum count for each element.
 - Copy, Regenerate, a strength meter, and letters / digits / symbols in different colours.
 - Four designs, chosen in Settings: **Two-pane Light** (default), Two-pane Dark, Fluent Light, Compact.
-- Passwords are never saved to disk and never sent anywhere.
+- **Change a password** window: types your current password and the new one into the website or app you used last, in an order you choose, the way KeePass auto-type does.
+- Generated passwords are never saved. The current password you paste for a change is kept on this PC only, encrypted with your Windows sign-in. Nothing is ever sent anywhere.
 
 The full list is in [docs/FEATURES.md](docs/FEATURES.md).
 

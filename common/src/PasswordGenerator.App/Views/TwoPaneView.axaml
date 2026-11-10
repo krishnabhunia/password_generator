@@ -117,7 +117,7 @@
 
       <TextBlock Classes="sub" FontSize="13" TextWrapping="Wrap" Text="{Binding Recipe}" />
 
-      <Grid ColumnDefinitions="*,12,170" Height="48" Margin="0,6,0,0">
+      <Grid ColumnDefinitions="*,12,170" Height="48" Margin="0,6,0,-4">
         <Button Classes="primary" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" CornerRadius="6" FontSize="15" Command="{Binding CopyCommand}">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Viewbox Width="18" Height="18">
@@ -139,6 +139,16 @@
           </StackPanel>
         </Button>
       </Grid>
+      <Button Classes="secondary" Height="44" CornerRadius="6" FontSize="15" HorizontalAlignment="Stretch" Command="{Binding ChangePasswordCommand}" ToolTip.Tip="Ctrl+K">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Viewbox Width="18" Height="18">
+            <Canvas Width="24" Height="24">
+              <Path Classes="icon" Data="{StaticResource Icon.Key}" Stroke="{Binding $parent[Button].Foreground}" />
+            </Canvas>
+          </Viewbox>
+          <TextBlock Text="Change a password…" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
     </StackPanel>
   </Grid>
 </UserControl>

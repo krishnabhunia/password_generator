@@ -231,6 +231,57 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Pg.AccentHover}" />
   </Style>
 
+  <!-- A step of the typing order: Current is outlined dark, New is filled, keys are grey -->
+  <Style Selector="Border.step">
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Margin" Value="3" />
+    <Setter Property="Padding" Value="2,0,0,0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource Pg.WindowBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.ControlBorder}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Pg.Text}" />
+  </Style>
+  <Style Selector="Border.step.cur">
+    <Setter Property="Background" Value="{DynamicResource Pg.ControlBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.Text}" />
+  </Style>
+  <Style Selector="Border.step.new">
+    <Setter Property="Background" Value="{DynamicResource Pg.ChipOnBg}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Pg.Accent}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Pg.ChipOnFg}" />
+  </Style>
+  <Style Selector="Button.mini">
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Foreground" Value="{Binding $parent[Border].(TextElement.Foreground)}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.Text}" />
+    </Style>
+    <Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Pg.ControlHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource Pg.Text}" />
+    </Style>
+  </Style>
+  <Style Selector="Button.add">
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock.problem">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Foreground" Value="{DynamicResource Pg.Weak}" />
+  </Style>
+
   <!-- Strength meter -->
   <Style Selector="ProgressBar.meter">
     <Setter Property="Height" Value="6" />

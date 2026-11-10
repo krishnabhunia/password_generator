@@ -45,6 +45,7 @@ public sealed class MainViewModel : ObservableObject
         UpdateCommand = new RelayCommand(() => UpdateRequested?.Invoke(), () => !UpdateBusy);
         InfoCommand = new RelayCommand(() => InfoRequested?.Invoke());
         SettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke());
+        ChangePasswordCommand = new RelayCommand(() => ChangePasswordRequested?.Invoke());
         _copiedTimer.Tick += (_, _) => Copied = false;
         Regenerate();
     }
@@ -67,12 +68,14 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand UpdateCommand { get; }
     public ICommand InfoCommand { get; }
     public ICommand SettingsCommand { get; }
+    public ICommand ChangePasswordCommand { get; }
 
     /// <summary>Set by the window: puts text on the clipboard.</summary>
     public Func<string, Task>? CopyHandler { get; set; }
     public event Action? UpdateRequested;
     public event Action? InfoRequested;
     public event Action? SettingsRequested;
+    public event Action? ChangePasswordRequested;
     /// <summary>Raised whenever the choices change, so they can be saved.</summary>
     public event Action? OptionsChanged;
 
