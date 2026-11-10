@@ -38,14 +38,16 @@ public sealed class SampleTyper : IKeyboardTyper
     public int TimesTyped { get; private set; }
     public IntPtr LastHandle { get; private set; }
     public IReadOnlyList<TypingAction> LastPlan { get; private set; } = Array.Empty<TypingAction>();
+    public TypingDelays? LastDelays { get; private set; }
 
     public TargetWindow? FindTarget() => Target;
 
-    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default)
+    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, TypingDelays delays, CancellationToken ct = default)
     {
         TimesTyped++;
         LastHandle = target;
         LastPlan = plan;
+        LastDelays = delays;
         return Task.FromResult(new TypeResult(true, ""));
     }
 }
@@ -181,12 +183,12 @@ public static class SmokeTest
                 Save(change, Path.Combine(dir, $"change-{design.Id}-shown.png"));
                 cvm.ResetCommand.Execute(null);
 
-                cvm.ShowDoneForSelfTest();
+                // After typing: one line of feedback, and nothing else changes.
+                cvm.TypeCommand.Execute(null);
                 await Settle();
                 Check(change, "Change a password (after typing) " + design.Id, failures);
-                Save(change, Path.Combine(dir, $"change-{design.Id}-done.png"));
-                cvm.YesCommand.Execute(null);
-                if (cvm.Current.Length != 16 || cvm.Current == vm.Password) failures.Add("\"Yes\" should make the new password the current one and generate a fresh new one");
+                if (!cvm.IsIdle || !cvm.ShowLastTyped) failures.Add("After typing the window should be ready again and say what was typed");
+                Save(change, Path.Combine(dir, $"change-{design.Id}-typed.png"));
                 log.AppendLine($"Change a password {design.Id}: {change.ClientSize.Width:0}x{height:0} ({tallest:0} high with 12 steps)");
 
                 // Closing and opening again stands in for a restart: the current password must come back (Windows only).
@@ -217,7 +219,7 @@ public static class SmokeTest
         return failures.Count == 0 ? 0 : 1;
     }
 
-    /// <summary>The rules that protect a password while it is being changed.</summary>
+    /// <summary>The rules of the Change a password window.</summary>
     private static async Task ChangeRules(MainWindow window, MainViewModel vm, List<string> failures, StringBuilder log)
     {
         const string sampleCurrent = "Old-Sample-1!";
@@ -235,35 +237,46 @@ public static class SmokeTest
         if (!cvm.Problem.Contains("changed") || !cvm.TargetTitle.Contains("Some other window"))
             failures.Add("Change rules: a changed target window was not reported: " + cvm.Problem);
 
-        // 2. Pressed again with the new window on screen: typed once, into that window, with the password shown.
+        // 2. The delays chosen in the window are the ones the typer gets, and they are remembered.
+        cvm.CharDelayMs = 35;
+        cvm.TabDelayMs = 250;
+        cvm.CharDelayUpCommand.Execute(null);   // 40
+        cvm.TabDelayDownCommand.Execute(null);  // 200
         var typed = vm.Password;
         cvm.TypeCommand.Execute(null);
         await Settle();
-        if (typer.TimesTyped != 1 || typer.LastHandle != new IntPtr(2) || !cvm.IsDone) failures.Add("Change rules: typing did not run once into the shown window");
+        if (typer.TimesTyped != 1 || typer.LastHandle != new IntPtr(2)) failures.Add("Change rules: typing did not run once into the shown window");
         if (typer.LastPlan.OfType<TypingAction.Text>().Count(t => t.Value == typed) != 2) failures.Add("Change rules: the typed plan does not carry the new password twice");
+        if (typer.LastDelays != new TypingDelays(40, 200)) failures.Add($"Change rules: the typer got delays {typer.LastDelays}, expected 40 ms and 200 ms");
+        if (AppState.Settings.Delays() != new TypingDelays(40, 200)) failures.Add("Change rules: the delays were not saved in the settings");
+        cvm.CharDelayMs = 99999;
+        cvm.TabDelayMs = -5;
+        if (cvm.CharDelayMs != TypingDelays.MaxCharMs || cvm.TabDelayMs != 0) failures.Add("Change rules: the delays are not kept inside their limits");
 
-        // 3. The generator moves on before the answer: the typed password must survive.
+        // 3. Typing changes nothing: the current password and the new password are both as they were.
+        if (cvm.Current != sampleCurrent) failures.Add("Change rules: the current password changed without the user changing it");
+        if (vm.Password != typed || cvm.NewPassword != typed) failures.Add("Change rules: the new password was replaced after typing");
+        if (!cvm.IsIdle || !cvm.LastTyped.Contains("was not changed")) failures.Add("Change rules: after typing the window is not ready again: " + cvm.LastTyped);
+
+        // 4. Only the user changes the current password; New changes only the new one.
         cvm.NewCommand.Execute(null);
-        vm.Regenerate();
-        await Settle();
-        if (vm.Password == typed) failures.Add("Change rules: the generator did not move on in the self-test");
-        if (cvm.NewPassword != typed) failures.Add("Change rules: the typed password was replaced before the answer");
+        if (vm.Password == typed) failures.Add("Change rules: New did not make another new password");
+        if (cvm.Current != sampleCurrent) failures.Add("Change rules: New changed the current password");
 
-        // 4. Closing without an answer is refused.
+        // 5. The window closes whenever the user wants, and the current password is still there afterwards.
         change.Close();
         await Settle();
-        if (!change.IsVisible || !cvm.AnswerReminder) failures.Add("Change rules: the window closed before \"Did the change work?\" was answered");
-        Check(change, "Change a password (answer first)", failures);
-
-        // 5. Yes keeps exactly the password that was typed.
-        cvm.YesCommand.Execute(null);
-        if (cvm.Current != typed) failures.Add("Change rules: Yes did not keep the password that was typed");
-        if (cvm.NewPassword == typed) failures.Add("Change rules: no fresh new password after Yes");
-        cvm.Current = "";
-        change.Close();
+        if (change.IsVisible) failures.Add("Change rules: the window did not close");
+        var again = window.ShowChangePassword(new SampleTyper());
+        var kept = OperatingSystem.IsWindows() ? sampleCurrent : "";
+        if (again.ViewModel.Current != kept) failures.Add("Change rules: the current password was not kept after closing the window");
+        if (again.ViewModel.Delays != new TypingDelays(TypingDelays.MaxCharMs, 0)) failures.Add("Change rules: the delays did not come back after reopening the window");
+        again.ViewModel.CharDelayMs = TypingDelays.DefaultCharMs;
+        again.ViewModel.TabDelayMs = TypingDelays.DefaultKeyMs;
+        again.ViewModel.Current = "";
+        again.Close();
         await Settle();
-        if (change.IsVisible) failures.Add("Change rules: the window did not close after the answer");
-        log.AppendLine("Change rules: shown window only, typed password kept until answered, no closing before the answer");
+        log.AppendLine("Change rules: shown window only, delays passed on and saved, nothing changes after typing");
     }
 
     /// <summary>Windows only: really types a sample sequence into a window of our own and checks what arrived.</summary>
@@ -284,8 +297,17 @@ public static class SmokeTest
         await Settle();
         var handle = probe.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         var typer = new WindowsTyper();
-        var result = await typer.TypeAsync(handle, TypingOrder.Plan(TypingOrder.Default, current, fresh));
+        var plan = TypingOrder.Plan(TypingOrder.Default, current, fresh);
+        var delays = new TypingDelays(20, 200);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var result = await typer.TypeAsync(handle, plan, delays);
+        clock.Stop();
         await Settle();
+        // 45 characters × 20 ms + 3 keys × 200 ms: the typing cannot be faster than the delays allow.
+        var least = delays.MinimumDuration(plan);
+        if (result.Ok && clock.ElapsedMilliseconds < least)
+            failures.Add($"Typing check: took {clock.ElapsedMilliseconds} ms, but the delays alone need {least} ms");
+        log.AppendLine($"Typing delays: 20 ms per character and 200 ms per tab took {clock.ElapsedMilliseconds} ms (at least {least} ms expected)");
         if (!result.Ok) failures.Add("Typing check: " + result.Message);
         else if (probe.First.Text != current || probe.Second.Text != fresh || probe.Third.Text != fresh || !probe.EnterPressed)
             failures.Add($"Typing check: boxes hold \"{probe.First.Text}\", \"{probe.Second.Text}\", \"{probe.Third.Text}\", Enter pressed: {probe.EnterPressed}");

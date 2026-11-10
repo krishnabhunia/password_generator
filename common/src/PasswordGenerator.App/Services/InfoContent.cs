@@ -68,6 +68,8 @@ public static class InfoContent
         ## Typing into another window
         - The typing uses the same Windows mechanism as KeePass auto-type: the app switches to the window you used last and sends the characters as keyboard input.
         - It stops if a different window comes to the front or you press Esc, so a password is not typed into the wrong place.
+        - The delay between characters is the pause after every character; the delay between tabs is the pause after every Tab or Enter, which gives a form time to move to its next box.
+        - Typing changes nothing in the app: the current password stays until you change it yourself, and the new password stays until you press New or Regenerate.
         - A window that runs as administrator does not accept typing from a normal program.
         ## Updates
         - At every start the app asks GitHub Releases whether a newer version exists. That is its only network use.

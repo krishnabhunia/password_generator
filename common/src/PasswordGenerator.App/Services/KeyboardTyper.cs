@@ -18,15 +18,15 @@ public interface IKeyboardTyper
     /// <summary>The window used just before this app: the top-most visible window of another program.</summary>
     TargetWindow? FindTarget();
 
-    /// <summary>Brings the window to the front and types the plan into it.</summary>
-    Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default);
+    /// <summary>Brings the window to the front and types the plan into it, pausing as the delays say.</summary>
+    Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, TypingDelays delays, CancellationToken ct = default);
 }
 
 public sealed class NoTyper : IKeyboardTyper
 {
     public bool Available => false;
     public TargetWindow? FindTarget() => null;
-    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default) =>
+    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, TypingDelays delays, CancellationToken ct = default) =>
         Task.FromResult(new TypeResult(false, "Typing into other windows works on Windows only."));
 }
 
@@ -38,8 +38,6 @@ public static class KeyboardTyper
 [SupportedOSPlatform("windows")]
 public sealed class WindowsTyper : IKeyboardTyper
 {
-    private const int CharDelayMs = 8;
-    private const int KeyDelayMs = 60;
     private const string Partly = " Part of the sequence may already have been typed.";
 
     public bool Available => true;
@@ -63,10 +61,10 @@ public sealed class WindowsTyper : IKeyboardTyper
         return null;
     }
 
-    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default) =>
-        Task.Run(() => Run(target, plan, ct), CancellationToken.None);
+    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, TypingDelays delays, CancellationToken ct = default) =>
+        Task.Run(() => Run(target, plan, delays.Normalized(), ct), CancellationToken.None);
 
-    private static TypeResult Run(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct)
+    private static TypeResult Run(IntPtr target, IReadOnlyList<TypingAction> plan, TypingDelays delays, CancellationToken ct)
     {
         if (!IsWindow(target)) return new TypeResult(false, "That window is no longer open. Nothing was typed.");
 
@@ -94,25 +92,31 @@ public sealed class WindowsTyper : IKeyboardTyper
                         if (StopReason(target, ct) is { } why) return new TypeResult(false, why + (first ? " Nothing was typed." : Partly));
                         if (!SendUnicode(c)) return new TypeResult(false, Refused + (first ? " Nothing was typed." : Partly));
                         first = false;
-                        Thread.Sleep(CharDelayMs);
+                        Wait(delays.CharMs, ct);
                     }
                     break;
                 case TypingAction.Key key:
                     if (StopReason(target, ct) is { } stop) return new TypeResult(false, stop + (first ? " Nothing was typed." : Partly));
                     if (!SendVirtualKey(key.Which == TypingKey.Tab ? VkTab : VkReturn)) return new TypeResult(false, Refused + (first ? " Nothing was typed." : Partly));
                     first = false;
-                    Thread.Sleep(KeyDelayMs);
+                    Wait(delays.KeyMs, ct);
                     break;
                 case TypingAction.Pause pause:
-                    for (var waited = 0; waited < pause.Milliseconds; waited += 50)
-                    {
-                        if (ct.IsCancellationRequested || Down(VkEscape)) break;
-                        Thread.Sleep(50);
-                    }
+                    Wait(pause.Milliseconds, ct);
                     break;
             }
         }
         return new TypeResult(true, "");
+    }
+
+    /// <summary>Pauses in short slices, so Esc and cancelling are noticed during a long delay too.</summary>
+    private static void Wait(int milliseconds, CancellationToken ct)
+    {
+        for (var left = milliseconds; left > 0; left -= 50)
+        {
+            if (ct.IsCancellationRequested || Down(VkEscape)) return; // the next step reports why it stopped
+            Thread.Sleep(Math.Min(left, 50));
+        }
     }
 
     private const string Refused = "Windows did not accept the typing. The other window may be running as administrator.";
