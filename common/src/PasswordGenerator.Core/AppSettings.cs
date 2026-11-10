@@ -15,11 +15,14 @@ public sealed record AppSettings
     /// <summary>Also offer beta versions.</summary>
     public bool IncludeBeta { get; init; }
     public GeneratorOptions Options { get; init; } = new();
+    /// <summary>The typing order of the Change a password window, as step names. Null means the default order.</summary>
+    public IReadOnlyList<string>? TypingOrder { get; init; }
 
     public AppSettings Normalized() => this with
     {
         Design = Designs.Contains(Design) ? Design : DefaultDesign,
         Options = (Options ?? new GeneratorOptions()).Normalized(),
+        TypingOrder = TypingOrder is null ? null : Core.TypingOrder.Names(Core.TypingOrder.Parse(TypingOrder)),
     };
 }
 
