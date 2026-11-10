@@ -11,6 +11,12 @@ public static class AppState
     public static string SettingsPath => Path.Combine(DataDir, "settings.json");
     public static string UpdatesDir => Path.Combine(DataDir, "updates");
     public static string LogPath => Path.Combine(DataDir, "app.log");
+    /// <summary>The current password of the Change a password window, encrypted with the Windows sign-in.</summary>
+    public static string CurrentPasswordPath => Path.Combine(DataDir, "current.bin");
+
+    /// <summary>The encrypted store. Where no encryption is available (not Windows) nothing is written at all.</summary>
+    public static SecretFile CurrentPasswordStore() =>
+        new(CurrentPasswordPath, OperatingSystem.IsWindows() ? new DpapiProtector() : null);
 
     /// <summary>Folder for the self-test's pictures and result; null in normal use.</summary>
     public static string? SmokeTestDir { get; private set; }

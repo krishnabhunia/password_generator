@@ -1,6 +1,9 @@
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using PasswordGenerator.Core;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using PasswordGenerator.App.ViewModels;
@@ -24,6 +27,33 @@ public sealed class SampleRandomSource : PasswordGenerator.Core.IRandomSource
     {
         _state = _state * 1664525 + 1013904223;
         return (int)((_state >> 8) % (uint)exclusiveMax);
+    }
+}
+
+/// <summary>Self-test stand-in for the typer: names a sample window and never types anything.</summary>
+public sealed class SampleTyper : IKeyboardTyper
+{
+    public bool Available => true;
+    public TargetWindow? FindTarget() => new(new IntPtr(1), "Change your password – Sample window");
+    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default) =>
+        Task.FromResult(new TypeResult(true, ""));
+}
+
+/// <summary>A window with three boxes that the self-test types into, to prove the typing really arrives.</summary>
+public sealed class TypingProbeWindow : Window
+{
+    public TextBox First { get; } = new();
+    public TextBox Second { get; } = new();
+    public TextBox Third { get; } = new();
+    public bool EnterPressed { get; private set; }
+
+    public TypingProbeWindow()
+    {
+        Title = "Password Generator typing probe";
+        Width = 420;
+        SizeToContent = SizeToContent.Height;
+        Content = new StackPanel { Margin = new Thickness(16), Spacing = 8, Children = { First, Second, Third } };
+        AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter) EnterPressed = true; }, RoutingStrategies.Tunnel);
     }
 }
 
@@ -105,6 +135,60 @@ public static class SmokeTest
                 if (info.TabCount != 4) failures.Add("The Info window should have 4 tabs, it has " + info.TabCount);
                 info.Close();
             }
+            // The Change a password window, in a light and a dark design.
+            const string sampleCurrent = "Old-Sample-1!";
+            foreach (var design in new[] { DesignInfo.All[0], DesignInfo.All[1] })
+            {
+                window.ApplyDesign(design.Id);
+                Reset(vm);
+                await Settle();
+                var change = window.ShowChangePassword(new SampleTyper());
+                var cvm = change.ViewModel;
+                cvm.Current = "";
+                await Settle();
+                Check(change, "Change a password (nothing pasted) " + design.Id, failures);
+                if (cvm.CanType) failures.Add("Typing is offered although no current password was pasted");
+                Save(change, Path.Combine(dir, $"change-{design.Id}-empty.png"));
+
+                cvm.Current = sampleCurrent;
+                await Settle();
+                var height = Check(change, "Change a password " + design.Id, failures);
+                if (!cvm.CanType) failures.Add("Typing is not offered although everything is filled in: " + cvm.Problem);
+                Save(change, Path.Combine(dir, $"change-{design.Id}.png"));
+
+                // Everything shown and the longest order, to see the chips wrap.
+                cvm.ShowCurrent = true;
+                cvm.ShowNew = true;
+                while (cvm.Steps.Count < TypingOrder.MaxSteps) cvm.Adders[cvm.Steps.Count % cvm.Adders.Count].Command.Execute(null);
+                await Settle();
+                // The window grows with a long order; Check makes sure it still fits the screen and nothing is cut off.
+                var tallest = Check(change, "Change a password (12 steps) " + design.Id, failures);
+                Save(change, Path.Combine(dir, $"change-{design.Id}-shown.png"));
+                cvm.ResetCommand.Execute(null);
+
+                cvm.ShowDoneForSelfTest();
+                await Settle();
+                Check(change, "Change a password (after typing) " + design.Id, failures);
+                Save(change, Path.Combine(dir, $"change-{design.Id}-done.png"));
+                cvm.YesCommand.Execute(null);
+                if (cvm.Current.Length != 16 || cvm.Current == vm.Password) failures.Add("\"Yes\" should make the new password the current one and generate a fresh new one");
+                log.AppendLine($"Change a password {design.Id}: {change.ClientSize.Width:0}x{height:0} ({tallest:0} high with 12 steps)");
+
+                // Closing and opening again stands in for a restart: the current password must come back (Windows only).
+                cvm.Current = sampleCurrent;
+                change.Close();
+                await Settle();
+                var again = window.ShowChangePassword(new SampleTyper());
+                var expected = OperatingSystem.IsWindows() ? sampleCurrent : "";
+                if (again.ViewModel.Current != expected) failures.Add("The current password did not come back after reopening the window");
+                again.ViewModel.Current = "";
+                again.Close();
+                await Settle();
+            }
+            if (File.Exists(AppState.CurrentPasswordPath)) failures.Add("Forgetting the current password left its file behind");
+            log.AppendLine(OperatingSystem.IsWindows() ? "Encrypted store: saved, read back and removed" : "Encrypted store: not available on this system, nothing written");
+
+            await TypingCheck(failures, log);
             window.ApplyDesign(DesignInfo.All[0].Id);
         }
         catch (Exception e)
@@ -115,6 +199,34 @@ public static class SmokeTest
         var result = (failures.Count == 0 ? "PASSED" : "FAILED") + Environment.NewLine + log + string.Join(Environment.NewLine, failures);
         File.WriteAllText(Path.Combine(dir, "smoke-result.txt"), result);
         return failures.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>Windows only: really types a sample sequence into a window of our own and checks what arrived.</summary>
+    private static async Task TypingCheck(List<string> failures, StringBuilder log)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            log.AppendLine("Typing check: skipped (typing into windows works on Windows only)");
+            return;
+        }
+        const string current = "Old-Sample-1!{}";
+        const string fresh = "New-Sample-2?~é";
+        var probe = new TypingProbeWindow();
+        probe.Show();
+        probe.Activate();
+        await Settle();
+        probe.First.Focus();
+        await Settle();
+        var handle = probe.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        var typer = new WindowsTyper();
+        var result = await typer.TypeAsync(handle, TypingOrder.Plan(TypingOrder.Default, current, fresh));
+        await Settle();
+        if (!result.Ok) failures.Add("Typing check: " + result.Message);
+        else if (probe.First.Text != current || probe.Second.Text != fresh || probe.Third.Text != fresh || !probe.EnterPressed)
+            failures.Add($"Typing check: boxes hold \"{probe.First.Text}\", \"{probe.Second.Text}\", \"{probe.Third.Text}\", Enter pressed: {probe.EnterPressed}");
+        else log.AppendLine("Typing check: Current, Tab, New, Tab, New, Enter arrived exactly in a test window");
+        log.AppendLine("Window used last: " + (typer.FindTarget() is null ? "none found on this machine" : "found"));
+        probe.Close();
     }
 
     private static void Reset(MainViewModel vm)

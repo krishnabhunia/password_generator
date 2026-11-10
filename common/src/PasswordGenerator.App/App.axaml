@@ -13,6 +13,9 @@
       <StreamGeometry x:Key="Icon.Refresh">M20,11 a8,8 0 1 0 -2.3,6.3 M20,4 v7 h-7</StreamGeometry>
       <StreamGeometry x:Key="Icon.Info">M12,3 a9,9 0 1 0 0.01,0 Z M12,11 v5 M12,7.5 v0.5</StreamGeometry>
       <StreamGeometry x:Key="Icon.Settings">M4,7 h9 M17,7 h3 M4,17 h3 M11,17 h9 M13,5 v4 h4 v-4 Z M7,15 v4 h4 v-4 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Key">M8,11 a4,4 0 1 0 0.01,0 Z M10.8,12.2 L20,3 M17,6 l3,3 M14,9 l2,2</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Lock">M7,11 h10 a2,2 0 0 1 2,2 v5 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-5 a2,2 0 0 1 2,-2 Z M8,11 V8 a4,4 0 0 1 8,0 v3</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Window">M5,5 h14 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-14 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 Z M3,9 h18</StreamGeometry>
       <StreamGeometry x:Key="Icon.Check">M5,12.5 l4.5,4.5 L19,7.5</StreamGeometry>
     </ResourceDictionary>
   </Application.Resources>

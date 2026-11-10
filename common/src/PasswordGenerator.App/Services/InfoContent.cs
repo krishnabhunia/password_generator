@@ -62,7 +62,13 @@ public static class InfoContent
         - The strength figure is log2 of the number of different passwords your choices allow, shown in bits. Asking for many of one element lowers it.
         ## What is stored
         - Your choices (elements, minimums, length, design, update options) are saved in the settings file.
-        - Passwords are never written to disk and never sent anywhere. Copy puts the password on the clipboard only.
+        - Generated passwords are never written to disk. Copy puts the password on the clipboard only.
+        - The one exception is the current password you paste into the Change a password window. It is stored in the file current.bin next to the settings, encrypted by Windows (DPAPI) for your sign-in, so only your Windows account on this PC can read it. Forget it deletes the file.
+        - No password is ever sent anywhere.
+        ## Typing into another window
+        - The typing uses the same Windows mechanism as KeePass auto-type: the app switches to the window you used last and sends the characters as keyboard input.
+        - It stops if a different window comes to the front or you press Esc, so a password is not typed into the wrong place.
+        - A window that runs as administrator does not accept typing from a normal program.
         ## Updates
         - At every start the app asks GitHub Releases whether a newer version exists. That is its only network use.
         - A download is checked against its SHA-256 before it is installed.

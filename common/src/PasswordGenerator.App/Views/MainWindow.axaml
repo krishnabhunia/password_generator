@@ -22,17 +22,24 @@
     </Border>
 
     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource Pg.Divider}" BorderThickness="0,1,0,0" Padding="24,0,14,0">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto" Height="36">
-        <TextBlock Classes="sub" Text="Passwords are never saved or sent." TextTrimming="CharacterEllipsis" />
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Height="36">
+        <TextBlock Classes="sub" Text="Passwords are never sent anywhere." TextTrimming="CharacterEllipsis" />
         <TextBlock Grid.Column="1" Classes="sub" Text="{Binding VersionText}" Margin="8,0,6,0" />
-        <Button Grid.Column="2" Classes="icon" Command="{Binding InfoCommand}" AutomationProperties.Name="Info" ToolTip.Tip="Info (F1)">
+        <Button Grid.Column="2" Classes="icon" Command="{Binding ChangePasswordCommand}" AutomationProperties.Name="Change a password" ToolTip.Tip="Change a password (Ctrl+K)">
+          <Viewbox Width="16" Height="16">
+            <Canvas Width="24" Height="24">
+              <Path Classes="icon" Data="{StaticResource Icon.Key}" Stroke="{DynamicResource Pg.SubText}" />
+            </Canvas>
+          </Viewbox>
+        </Button>
+        <Button Grid.Column="3" Classes="icon" Command="{Binding InfoCommand}" AutomationProperties.Name="Info" ToolTip.Tip="Info (F1)">
           <Viewbox Width="16" Height="16">
             <Canvas Width="24" Height="24">
               <Path Classes="icon" Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Pg.SubText}" />
             </Canvas>
           </Viewbox>
         </Button>
-        <Button Grid.Column="3" Classes="icon" Command="{Binding SettingsCommand}" AutomationProperties.Name="Settings" ToolTip.Tip="Settings">
+        <Button Grid.Column="4" Classes="icon" Command="{Binding SettingsCommand}" AutomationProperties.Name="Settings" ToolTip.Tip="Settings">
           <Viewbox Width="16" Height="16">
             <Canvas Width="24" Height="24">
               <Path Classes="icon" Data="{StaticResource Icon.Settings}" Stroke="{DynamicResource Pg.SubText}" />
