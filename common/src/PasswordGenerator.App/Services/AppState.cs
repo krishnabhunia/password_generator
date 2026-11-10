@@ -5,8 +5,11 @@ namespace PasswordGenerator.App.Services;
 /// <summary>Start-up arguments and the settings held while the app runs.</summary>
 public static class AppState
 {
-    public static string DataDir { get; private set; } =
+    /// <summary>The user's real data folder: settings and the encrypted current password.</summary>
+    public static string DefaultDataDir { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PasswordGenerator");
+
+    public static string DataDir { get; private set; } = DefaultDataDir;
 
     public static string SettingsPath => Path.Combine(DataDir, "settings.json");
     public static string UpdatesDir => Path.Combine(DataDir, "updates");
@@ -25,16 +28,25 @@ public static class AppState
 
     public static void ReadArguments(string[] args)
     {
+        var dataDirGiven = false;
         for (var i = 0; i < args.Length; i++)
         {
             var next = i + 1 < args.Length ? args[i + 1] : null;
             switch (args[i])
             {
-                case "--data-dir" when next is not null: DataDir = Path.GetFullPath(next); i++; break;
+                case "--data-dir" when next is not null: DataDir = Path.GetFullPath(next); dataDirGiven = true; i++; break;
                 case "--smoke-test" when next is not null: SmokeTestDir = Path.GetFullPath(next); i++; break;
             }
         }
+        // The self-test changes settings and clears the stored current password, so it must never
+        // run on the user's real data folder, with or without --data-dir.
+        if (SmokeTestDir is not null && (!dataDirGiven || SamePath(DataDir, DefaultDataDir)))
+            DataDir = Path.Combine(SmokeTestDir, "data");
     }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     public static void Load() => Settings = SettingsStore.Load(SettingsPath);
 

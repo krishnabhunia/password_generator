@@ -34,9 +34,20 @@ public sealed class SampleRandomSource : PasswordGenerator.Core.IRandomSource
 public sealed class SampleTyper : IKeyboardTyper
 {
     public bool Available => true;
-    public TargetWindow? FindTarget() => new(new IntPtr(1), "Change your password – Sample window");
-    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default) =>
-        Task.FromResult(new TypeResult(true, ""));
+    public TargetWindow? Target { get; set; } = new(new IntPtr(1), "Change your password – Sample window");
+    public int TimesTyped { get; private set; }
+    public IntPtr LastHandle { get; private set; }
+    public IReadOnlyList<TypingAction> LastPlan { get; private set; } = Array.Empty<TypingAction>();
+
+    public TargetWindow? FindTarget() => Target;
+
+    public Task<TypeResult> TypeAsync(IntPtr target, IReadOnlyList<TypingAction> plan, CancellationToken ct = default)
+    {
+        TimesTyped++;
+        LastHandle = target;
+        LastPlan = plan;
+        return Task.FromResult(new TypeResult(true, ""));
+    }
 }
 
 /// <summary>A window with three boxes that the self-test types into, to prove the typing really arrives.</summary>
@@ -70,6 +81,8 @@ public static class SmokeTest
         try
         {
             Directory.CreateDirectory(dir);
+            if (string.Equals(Path.GetFullPath(AppState.DataDir), Path.GetFullPath(AppState.DefaultDataDir), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("The self-test must not run on the user's real data folder.");
             foreach (var design in DesignInfo.All)
             {
                 window.ApplyDesign(design.Id);
@@ -187,6 +200,7 @@ public static class SmokeTest
                 again.Close();
                 await Settle();
             }
+            await ChangeRules(window, vm, failures, log);
             if (File.Exists(AppState.CurrentPasswordPath)) failures.Add("Forgetting the current password left its file behind");
             log.AppendLine(OperatingSystem.IsWindows() ? "Encrypted store: saved, read back and removed" : "Encrypted store: not available on this system, nothing written");
 
@@ -201,6 +215,55 @@ public static class SmokeTest
         var result = (failures.Count == 0 ? "PASSED" : "FAILED") + Environment.NewLine + log + string.Join(Environment.NewLine, failures);
         File.WriteAllText(Path.Combine(dir, "smoke-result.txt"), result);
         return failures.Count == 0 ? 0 : 1;
+    }
+
+    /// <summary>The rules that protect a password while it is being changed.</summary>
+    private static async Task ChangeRules(MainWindow window, MainViewModel vm, List<string> failures, StringBuilder log)
+    {
+        const string sampleCurrent = "Old-Sample-1!";
+        var typer = new SampleTyper();
+        var change = window.ShowChangePassword(typer);
+        var cvm = change.ViewModel;
+        cvm.Current = sampleCurrent;
+        await Settle();
+
+        // 1. A different window is in front than the one named on screen: nothing may be typed.
+        typer.Target = new TargetWindow(new IntPtr(2), "Some other window");
+        cvm.TypeCommand.Execute(null);
+        await Settle();
+        if (typer.TimesTyped != 0) failures.Add("Change rules: typed into a window other than the one that was shown");
+        if (!cvm.Problem.Contains("changed") || !cvm.TargetTitle.Contains("Some other window"))
+            failures.Add("Change rules: a changed target window was not reported: " + cvm.Problem);
+
+        // 2. Pressed again with the new window on screen: typed once, into that window, with the password shown.
+        var typed = vm.Password;
+        cvm.TypeCommand.Execute(null);
+        await Settle();
+        if (typer.TimesTyped != 1 || typer.LastHandle != new IntPtr(2) || !cvm.IsDone) failures.Add("Change rules: typing did not run once into the shown window");
+        if (typer.LastPlan.OfType<TypingAction.Text>().Count(t => t.Value == typed) != 2) failures.Add("Change rules: the typed plan does not carry the new password twice");
+
+        // 3. The generator moves on before the answer: the typed password must survive.
+        cvm.NewCommand.Execute(null);
+        vm.Regenerate();
+        await Settle();
+        if (vm.Password == typed) failures.Add("Change rules: the generator did not move on in the self-test");
+        if (cvm.NewPassword != typed) failures.Add("Change rules: the typed password was replaced before the answer");
+
+        // 4. Closing without an answer is refused.
+        change.Close();
+        await Settle();
+        if (!change.IsVisible || !cvm.AnswerReminder) failures.Add("Change rules: the window closed before \"Did the change work?\" was answered");
+        Check(change, "Change a password (answer first)", failures);
+
+        // 5. Yes keeps exactly the password that was typed.
+        cvm.YesCommand.Execute(null);
+        if (cvm.Current != typed) failures.Add("Change rules: Yes did not keep the password that was typed");
+        if (cvm.NewPassword == typed) failures.Add("Change rules: no fresh new password after Yes");
+        cvm.Current = "";
+        change.Close();
+        await Settle();
+        if (change.IsVisible) failures.Add("Change rules: the window did not close after the answer");
+        log.AppendLine("Change rules: shown window only, typed password kept until answered, no closing before the answer");
     }
 
     /// <summary>Windows only: really types a sample sequence into a window of our own and checks what arrived.</summary>
