@@ -24,7 +24,9 @@
 - "Type it into that window" switches to the window you used last and types the order into it at once, as KeePass does.
 - The window that will receive the typing is named before you press the button.
 - Typing stops by itself if another window comes to the front, and Esc stops it too.
-- Afterwards "Did the change work?" Yes makes the new password the current one and generates a fresh new one.
+- If a different window has come to the front since it was named, nothing is typed and the new window is shown for you to check.
+- Afterwards "Did the change work?" Yes makes the password that was typed the current one and generates a fresh new one.
+- The typed password is held until you answer, even if the generator makes another one, and the window does not close before you answer.
 
 ## Designs
 - Two-pane Light (the default): choices on the left, password on the right.

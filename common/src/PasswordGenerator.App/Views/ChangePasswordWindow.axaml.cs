@@ -26,6 +26,8 @@ public partial class ChangePasswordWindow : Window
         };
         // Coming back from the website or app: that is now "the window used last".
         Activated += (_, _) => _vm.RefreshTarget();
+        // Closing now would throw away the only copy of a password that may already be set on the website.
+        Closing += (_, e) => { if (_vm.MustAnswerFirst()) e.Cancel = true; };
         Closed += (_, _) => _vm.Detach();
         KeyDown += (_, e) =>
         {
