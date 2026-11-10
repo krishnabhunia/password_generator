@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PasswordGenerator.App.Views.SettingsWindow"
+        Title="Password Generator · Settings"
+        Icon="/Assets/app.ico"
+        Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Pg.WindowBg}" Foreground="{DynamicResource Pg.Text}" FontSize="14">
+  <StackPanel Margin="24,20,24,20" Spacing="14">
+
+    <Border Classes="card">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h" Text="Design" />
+        <TextBlock Classes="sub" TextWrapping="Wrap" Text="Changes the look of the main window straight away." />
+        <StackPanel x:Name="DesignList" Spacing="0" Margin="0,4,0,0" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h" Text="Updates" />
+        <CheckBox x:Name="AutoUpdate">
+          <TextBlock TextWrapping="Wrap" Text="Install updates automatically in the background" />
+        </CheckBox>
+        <CheckBox x:Name="IncludeBeta">
+          <TextBlock TextWrapping="Wrap" Text="Also offer beta (test) versions" />
+        </CheckBox>
+        <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+          <Button x:Name="CheckButton" Classes="secondary" Height="34" Padding="14,0" Click="OnCheck">
+            <TextBlock Text="Check for updates now" />
+          </Button>
+        </Grid>
+        <TextBlock x:Name="UpdateStatus" Classes="sub" TextWrapping="Wrap" IsVisible="False" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="h" Text="About" />
+          <TextBlock x:Name="VersionLine" Classes="sub" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="secondary" Height="34" Padding="14,0" Click="OnInfo">
+          <TextBlock Text="Info" />
+        </Button>
+      </Grid>
+    </Border>
+
+    <Button Classes="primary" HorizontalAlignment="Right" Width="96" Height="34" IsDefault="True" IsCancel="True" Click="OnClose">
+      <TextBlock Text="Close" />
+    </Button>
+  </StackPanel>
+</Window>

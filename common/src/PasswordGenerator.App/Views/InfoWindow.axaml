@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:s="using:PasswordGenerator.App.Services"
+        x:Class="PasswordGenerator.App.Views.InfoWindow"
+        Title="Password Generator · Info"
+        Icon="/Assets/app.ico"
+        Width="620" Height="560" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Pg.WindowBg}" Foreground="{DynamicResource Pg.Text}" FontSize="14">
+  <DockPanel Margin="20,12,20,16">
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="0,12,0,0">
+      <Button Classes="secondary" Height="34" Padding="14,0" Click="OnCopy">
+        <TextBlock x:Name="CopyText" Text="Copy build info" />
+      </Button>
+      <Button Grid.Column="2" Classes="primary" Width="96" Height="34" IsDefault="True" IsCancel="True" Click="OnClose">
+        <TextBlock Text="Close" />
+      </Button>
+    </Grid>
+
+    <TabControl x:Name="Tabs">
+      <TabItem Header="This build">
+        <ScrollViewer>
+          <ItemsControl x:Name="BuildRows" Margin="0,8,12,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="s:InfoRow">
+                <Grid ColumnDefinitions="150,*" Margin="0,5">
+                  <TextBlock Classes="sub" FontSize="13" VerticalAlignment="Top" Text="{Binding Name}" />
+                  <SelectableTextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding Value}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="What's implemented">
+        <ScrollViewer>
+          <ItemsControl x:Name="FeatureLines" Margin="0,8,12,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="s:DocLine">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Classes="doc" Text="•" Margin="8,2,8,2" IsVisible="{Binding IsBullet}" />
+                  <TextBlock Grid.Column="1" Classes="doc" Classes.h1="{Binding IsH1}" Classes.h2="{Binding IsH2}" Text="{Binding Text}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="What's new">
+        <ScrollViewer>
+          <ItemsControl x:Name="NewsLines" Margin="0,8,12,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="s:DocLine">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Classes="doc" Text="•" Margin="8,2,8,2" IsVisible="{Binding IsBullet}" />
+                  <TextBlock Grid.Column="1" Classes="doc" Classes.h1="{Binding IsH1}" Classes.h2="{Binding IsH2}" Text="{Binding Text}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Under the hood">
+        <ScrollViewer>
+          <ItemsControl x:Name="HoodLines" Margin="0,8,12,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="s:DocLine">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Classes="doc" Text="•" Margin="8,2,8,2" IsVisible="{Binding IsBullet}" />
+                  <TextBlock Grid.Column="1" Classes="doc" Classes.h1="{Binding IsH1}" Classes.h2="{Binding IsH2}" Text="{Binding Text}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

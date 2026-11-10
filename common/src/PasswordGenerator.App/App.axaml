@@ -1,0 +1,23 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PasswordGenerator.App.App"
+             RequestedThemeVariant="Light">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- Index 0 is swapped when the design changes (see App.ApplyPalette). -->
+        <ResourceInclude Source="/Palettes/Light.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <FontFamily x:Key="Pg.Mono">avares://PasswordGenerator/Assets/Fonts#JetBrains Mono</FontFamily>
+      <StreamGeometry x:Key="Icon.Copy">M9,9 h9 a2,2 0 0 1 2,2 v7 a2,2 0 0 1 -2,2 h-7 a2,2 0 0 1 -2,-2 Z M5,15 V6 a2,2 0 0 1 2,-2 h9</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Refresh">M20,11 a8,8 0 1 0 -2.3,6.3 M20,4 v7 h-7</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Info">M12,3 a9,9 0 1 0 0.01,0 Z M12,11 v5 M12,7.5 v0.5</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Settings">M4,7 h9 M17,7 h3 M4,17 h3 M11,17 h9 M13,5 v4 h4 v-4 Z M7,15 v4 h4 v-4 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Check">M5,12.5 l4.5,4.5 L19,7.5</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="/Styles/Controls.axaml" />
+  </Application.Styles>
+</Application>

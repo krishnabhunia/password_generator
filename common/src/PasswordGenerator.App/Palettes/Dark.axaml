@@ -1,0 +1,39 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Accent used by the built-in controls (slider, switch, tabs, check boxes). -->
+  <Color x:Key="SystemAccentColor">#F2B544</Color>
+  <Color x:Key="SystemAccentColorDark1">#D99E33</Color>
+  <Color x:Key="SystemAccentColorDark2">#BF8A2A</Color>
+  <Color x:Key="SystemAccentColorDark3">#A67621</Color>
+  <Color x:Key="SystemAccentColorLight1">#F5C263</Color>
+  <Color x:Key="SystemAccentColorLight2">#F8D08A</Color>
+  <Color x:Key="SystemAccentColorLight3">#FBE0B0</Color>
+
+  <SolidColorBrush x:Key="Pg.Accent" Color="#F2B544" />
+  <SolidColorBrush x:Key="Pg.AccentHover" Color="#FFC95C" />
+  <SolidColorBrush x:Key="Pg.OnAccent" Color="#1A1300" />
+  <SolidColorBrush x:Key="Pg.WindowBg" Color="#15171C" />
+  <SolidColorBrush x:Key="Pg.PaneBg" Color="#1B1E25" />
+  <SolidColorBrush x:Key="Pg.CardBg" Color="#22262F" />
+  <SolidColorBrush x:Key="Pg.CardBorder" Color="#343946" />
+  <SolidColorBrush x:Key="Pg.Text" Color="#ECEEF2" />
+  <SolidColorBrush x:Key="Pg.SubText" Color="#A9AFBC" />
+  <SolidColorBrush x:Key="Pg.ControlBg" Color="#2A2F3A" />
+  <SolidColorBrush x:Key="Pg.ControlBorder" Color="#454C5B" />
+  <SolidColorBrush x:Key="Pg.ControlHover" Color="#343A47" />
+  <SolidColorBrush x:Key="Pg.ChipOnBg" Color="#3A2F12" />
+  <SolidColorBrush x:Key="Pg.ChipOnFg" Color="#FFD98A" />
+  <SolidColorBrush x:Key="Pg.ChipOffBg" Color="#1B1E25" />
+  <SolidColorBrush x:Key="Pg.ChipOffFg" Color="#A9AFBC" />
+  <SolidColorBrush x:Key="Pg.ChipOffBorder" Color="#454C5B" />
+  <SolidColorBrush x:Key="Pg.MeterTrack" Color="#2C313C" />
+  <SolidColorBrush x:Key="Pg.Letter" Color="#ECEEF2" />
+  <SolidColorBrush x:Key="Pg.Digit" Color="#F2B544" />
+  <SolidColorBrush x:Key="Pg.Symbol" Color="#7CD4F0" />
+  <SolidColorBrush x:Key="Pg.Weak" Color="#FF8A80" />
+  <SolidColorBrush x:Key="Pg.Fair" Color="#F2B544" />
+  <SolidColorBrush x:Key="Pg.Strong" Color="#7BD88F" />
+  <SolidColorBrush x:Key="Pg.VeryStrong" Color="#B6F09C" />
+  <SolidColorBrush x:Key="Pg.PwdBg" Color="#101216" />
+  <SolidColorBrush x:Key="Pg.Divider" Color="#343946" />
+</ResourceDictionary>
