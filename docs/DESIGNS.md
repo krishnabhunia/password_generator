@@ -21,3 +21,17 @@ The window is as tall as its content needs and cannot be resized.
 | Shared control styles | `common/src/PasswordGenerator.App/Styles/Controls.axaml` |
 
 Adding a design means adding a layout and/or a palette and one line in `DesignInfo.All`. The self-test (`--smoke-test <folder>`) then opens it automatically and saves pictures of it.
+
+## Change a password window (design CP1, option B)
+
+Approved by Krishna on 10 Nov 2026: the two-pane option, typing "as in KeePass" (switch to the window used last and type at once), the current password stored encrypted with the Windows sign-in, opened from a button under Copy and Regenerate, a key icon in the footer and Ctrl+K.
+
+| Part | File |
+|---|---|
+| Window | `common/src/PasswordGenerator.App/Views/ChangePasswordWindow.axaml` |
+| Behaviour | `common/src/PasswordGenerator.App/ViewModels/ChangePasswordViewModel.cs` |
+| Typing order and plan | `common/src/PasswordGenerator.Core/Typing.cs` |
+| Encrypted store | `common/src/PasswordGenerator.Core/SecretFile.cs`, `common/src/PasswordGenerator.App/Services/DpapiProtector.cs` |
+| Typing into another window | `common/src/PasswordGenerator.App/Services/KeyboardTyper.cs` |
+
+The window uses the colours of the design chosen in Settings. It grows taller when the typing order needs more than two rows.
