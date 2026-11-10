@@ -13,6 +13,36 @@ public abstract record TypingAction
     public sealed record Pause(int Milliseconds) : TypingAction;
 }
 
+/// <summary>
+/// How fast the typer goes. <see cref="CharMs"/> is the pause after every character,
+/// <see cref="KeyMs"/> the pause after every Tab or Enter, so a form has time to move to its next box.
+/// </summary>
+public sealed record TypingDelays(int CharMs = TypingDelays.DefaultCharMs, int KeyMs = TypingDelays.DefaultKeyMs)
+{
+    public const int DefaultCharMs = 10;
+    public const int DefaultKeyMs = 100;
+    public const int MaxCharMs = 500;
+    public const int MaxKeyMs = 5000;
+    public const int CharStepMs = 5;
+    public const int KeyStepMs = 50;
+
+    /// <summary>The same delays brought inside 0 to 500 ms and 0 to 5000 ms.</summary>
+    public TypingDelays Normalized() => new(Math.Clamp(CharMs, 0, MaxCharMs), Math.Clamp(KeyMs, 0, MaxKeyMs));
+
+    /// <summary>The shortest time a plan takes with these delays, in milliseconds (the typing itself adds a little).</summary>
+    public int MinimumDuration(IEnumerable<TypingAction> plan)
+    {
+        var d = Normalized();
+        return plan.Sum(action => action switch
+        {
+            TypingAction.Text text => text.Value.Length * d.CharMs,
+            TypingAction.Key => d.KeyMs,
+            TypingAction.Pause pause => pause.Milliseconds,
+            _ => 0,
+        });
+    }
+}
+
 public static class TypingOrder
 {
     public const int MaxSteps = 12;

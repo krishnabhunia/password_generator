@@ -63,6 +63,52 @@ public class TypingOrderTests
     }
 }
 
+public class TypingDelayTests
+{
+    [Fact]
+    public void Defaults_are_10_and_100_milliseconds()
+    {
+        var d = new TypingDelays();
+        Assert.Equal((10, 100), (d.CharMs, d.KeyMs));
+        Assert.Equal(d, new AppSettings().Delays());
+    }
+
+    [Fact]
+    public void Delays_are_kept_inside_their_limits()
+    {
+        Assert.Equal(new TypingDelays(0, 0), new TypingDelays(-5, -1).Normalized());
+        Assert.Equal(new TypingDelays(500, 5000), new TypingDelays(9999, 99999).Normalized());
+        Assert.Equal(new TypingDelays(35, 250), new TypingDelays(35, 250).Normalized());
+    }
+
+    [Fact]
+    public void Shortest_duration_counts_every_character_key_and_wait()
+    {
+        var steps = new[] { TypingStep.Current, TypingStep.Tab, TypingStep.New, TypingStep.Wait, TypingStep.Enter };
+        var plan = TypingOrder.Plan(steps, "abcd", "123456");
+        // 10 characters × 20 ms + 2 keys × 300 ms + one 1000 ms wait.
+        Assert.Equal(10 * 20 + 2 * 300 + 1000, new TypingDelays(20, 300).MinimumDuration(plan));
+        Assert.Equal(1000, new TypingDelays(0, 0).MinimumDuration(plan));
+    }
+
+    [Fact]
+    public void Delays_are_kept_in_the_settings_file()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "pwgen-tests-" + Guid.NewGuid().ToString("N"), "settings.json");
+        SettingsStore.Save(path, new AppSettings { CharDelayMs = 45, TabDelayMs = 650 });
+        var back = SettingsStore.Load(path);
+        Assert.Equal(new TypingDelays(45, 650), back.Delays());
+
+        File.WriteAllText(path, """{"CharDelayMs":-20,"TabDelayMs":999999}""");
+        Assert.Equal(new TypingDelays(0, 5000), SettingsStore.Load(path).Delays());
+
+        // A settings file from version 1.1.0 has no delays: the defaults apply.
+        File.WriteAllText(path, """{"Design":"Compact"}""");
+        Assert.Equal(new TypingDelays(), SettingsStore.Load(path).Delays());
+        Directory.Delete(Path.GetDirectoryName(path)!, true);
+    }
+}
+
 public class SecretFileTests
 {
     /// <summary>Stands in for Windows data protection: reversible, and unreadable as plain text.</summary>

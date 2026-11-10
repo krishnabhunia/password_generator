@@ -17,12 +17,20 @@ public sealed record AppSettings
     public GeneratorOptions Options { get; init; } = new();
     /// <summary>The typing order of the Change a password window, as step names. Null means the default order.</summary>
     public IReadOnlyList<string>? TypingOrder { get; init; }
+    /// <summary>Pause after every typed character, in milliseconds.</summary>
+    public int CharDelayMs { get; init; } = TypingDelays.DefaultCharMs;
+    /// <summary>Pause after every Tab or Enter, in milliseconds.</summary>
+    public int TabDelayMs { get; init; } = TypingDelays.DefaultKeyMs;
+
+    public TypingDelays Delays() => new TypingDelays(CharDelayMs, TabDelayMs).Normalized();
 
     public AppSettings Normalized() => this with
     {
         Design = Designs.Contains(Design) ? Design : DefaultDesign,
         Options = (Options ?? new GeneratorOptions()).Normalized(),
         TypingOrder = TypingOrder is null ? null : Core.TypingOrder.Names(Core.TypingOrder.Parse(TypingOrder)),
+        CharDelayMs = Delays().CharMs,
+        TabDelayMs = Delays().KeyMs,
     };
 }
 
