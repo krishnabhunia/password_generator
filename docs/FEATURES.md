@@ -16,7 +16,7 @@
 - Generated passwords are never saved to disk, and no password is ever sent anywhere.
 
 ## Changing a password
-- A Change a password window opens from the "Change a password…" button, the key icon at the bottom, or Ctrl+K.
+- A Change a password window opens from the "Change a password…" button ("Change…" in the Fluent Light design), the key icon at the bottom, or Ctrl+K.
 - Paste the password you use now. It is hidden by default, with Show, Paste and Forget it.
 - That current password is kept after a restart, stored on this PC only and encrypted with your Windows sign-in.
 - The new password is the one from the generator; New makes another.

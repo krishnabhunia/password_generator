@@ -59,7 +59,9 @@ public sealed class TypingProbeWindow : Window
 
 public static class SmokeTest
 {
-    private const double MaxHeight = 900; // must fit a 1080-pixel-high screen with the taskbar
+    // Every window must fit a 768-pixel-high screen with the taskbar and title bar (about 749 usable).
+    // A taller window is silently cut off there, which is how the build machine caught one.
+    private const double MaxHeight = 740;
 
     public static async Task<int> RunAsync(MainWindow window, MainViewModel vm, string dir)
     {
