@@ -25,8 +25,10 @@
 - The window that will receive the typing is named before you press the button.
 - Typing stops by itself if another window comes to the front, and Esc stops it too.
 - If a different window has come to the front since it was named, nothing is typed and the new window is shown for you to check.
-- Afterwards "Did the change work?" Yes makes the password that was typed the current one and generates a fresh new one.
-- The typed password is held until you answer, even if the generator makes another one, and the window does not close before you answer.
+- Two typing delays you set with − and +: the delay between characters (0 to 500 ms) and the delay between tabs, which is the pause after each Tab or Enter (0 to 5000 ms). Both are remembered.
+- After typing, the window is ready again and says what was typed. Nothing else changes.
+- The current password stays exactly as it is until you change it yourself with Paste, by typing in the box, or with Forget it.
+- The new password stays on screen after typing, until you press New or Regenerate.
 
 ## Designs
 - Two-pane Light (the default): choices on the left, password on the right.

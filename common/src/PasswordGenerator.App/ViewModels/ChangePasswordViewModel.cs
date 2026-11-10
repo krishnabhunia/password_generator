@@ -32,7 +32,7 @@ public sealed class StepVm
 
 public sealed record AdderVm(string Label, ICommand Command);
 
-public enum ChangePhase { Idle, Typing, Done }
+public enum ChangePhase { Idle, Typing }
 
 /// <summary>The Change a password window: current password, new password, typing order, and typing it.</summary>
 public sealed class ChangePasswordViewModel : ObservableObject
@@ -46,16 +46,16 @@ public sealed class ChangePasswordViewModel : ObservableObject
     private bool _showNew;
     private TargetWindow? _target;
     private ChangePhase _phase = ChangePhase.Idle;
-    private string _doneText = "";
+    private string _lastTyped = "";
     private string _error = "";
-    private string? _typedNew;
-    private bool _answerReminder;
+    private TypingDelays _delays;
 
-    public ChangePasswordViewModel(MainViewModel main, SecretFile store, IKeyboardTyper typer, IEnumerable<string>? savedOrder)
+    public ChangePasswordViewModel(MainViewModel main, SecretFile store, IKeyboardTyper typer, IEnumerable<string>? savedOrder, TypingDelays? delays = null)
     {
         _main = main;
         _store = store;
         _typer = typer;
+        _delays = (delays ?? new TypingDelays()).Normalized();
         _current = store.Load();
         Steps = new ObservableCollection<StepVm>(TypingOrder.Parse(savedOrder).Select(Make));
         Adders = Enum.GetValues<TypingStep>()
@@ -69,8 +69,10 @@ public sealed class ChangePasswordViewModel : ObservableObject
         NewCommand = new RelayCommand(() => { if (IsIdle) _main.Regenerate(); }, () => IsIdle);
         ResetCommand = new RelayCommand(() => SetSteps(TypingOrder.Default));
         TypeCommand = new RelayCommand(Type, () => CanType);
-        YesCommand = new RelayCommand(Worked);
-        NoCommand = new RelayCommand(NotWorked);
+        CharDelayDownCommand = new RelayCommand(() => CharDelayMs -= TypingDelays.CharStepMs);
+        CharDelayUpCommand = new RelayCommand(() => CharDelayMs += TypingDelays.CharStepMs);
+        TabDelayDownCommand = new RelayCommand(() => TabDelayMs -= TypingDelays.KeyStepMs);
+        TabDelayUpCommand = new RelayCommand(() => TabDelayMs += TypingDelays.KeyStepMs);
         _main.PropertyChanged += MainChanged;
         RefreshTarget();
     }
@@ -84,15 +86,52 @@ public sealed class ChangePasswordViewModel : ObservableObject
     public RelayCommand NewCommand { get; }
     public ICommand ResetCommand { get; }
     public RelayCommand TypeCommand { get; }
-    public ICommand YesCommand { get; }
-    public ICommand NoCommand { get; }
+    public ICommand CharDelayDownCommand { get; }
+    public ICommand CharDelayUpCommand { get; }
+    public ICommand TabDelayDownCommand { get; }
+    public ICommand TabDelayUpCommand { get; }
 
     /// <summary>Set by the window: reads text from the clipboard.</summary>
     public Func<Task<string?>>? ClipboardReader { get; set; }
     /// <summary>Raised when the typing order changes, so it can be saved.</summary>
     public event Action<IReadOnlyList<string>>? OrderChanged;
+    /// <summary>Raised when a typing delay changes, so it can be saved.</summary>
+    public event Action<TypingDelays>? DelaysChanged;
 
-    /// <summary>The password in use now. Saved encrypted the moment it changes.</summary>
+    /// <summary>Pause after every typed character, 0 to 500 ms.</summary>
+    public int CharDelayMs
+    {
+        get => _delays.CharMs;
+        set => SetDelays(_delays with { CharMs = value });
+    }
+
+    /// <summary>Pause after every Tab or Enter, 0 to 5000 ms.</summary>
+    public int TabDelayMs
+    {
+        get => _delays.KeyMs;
+        set => SetDelays(_delays with { KeyMs = value });
+    }
+
+    public string CharDelayText => _delays.CharMs + " ms";
+    public string TabDelayText => _delays.KeyMs + " ms";
+    public TypingDelays Delays => _delays;
+
+    private void SetDelays(TypingDelays wanted)
+    {
+        var next = wanted.Normalized();
+        if (next == _delays) return;
+        _delays = next;
+        Raise(nameof(CharDelayMs));
+        Raise(nameof(TabDelayMs));
+        Raise(nameof(CharDelayText));
+        Raise(nameof(TabDelayText));
+        DelaysChanged?.Invoke(next);
+    }
+
+    /// <summary>
+    /// The password in use now. Saved encrypted the moment it changes. Only the user changes it
+    /// (typing in the box, Paste, Forget it): the app never replaces it on its own.
+    /// </summary>
     public string Current
     {
         get => _current;
@@ -121,17 +160,13 @@ public sealed class ChangePasswordViewModel : ObservableObject
     }
 
     public string ShowNewLabel => _showNew ? "Hide" : "Show";
-    /// <summary>
-    /// The new password this window is about. Once it has been typed into the other window it is held here
-    /// until the user answers "Did the change work?", whatever the generator does in the meantime.
-    /// </summary>
-    public string NewPassword => _typedNew ?? _main.Password;
+    /// <summary>The generator's password. Typing it does not replace it; it stays until New or Regenerate is pressed.</summary>
+    public string NewPassword => _main.Password;
     public string NewDisplay => _showNew ? NewPassword : string.Concat(Enumerable.Repeat(Mask, NewPassword.Length));
-    public string NewHint => _typedNew is not null ? "the one that was just typed"
-        : _main.Password.Length == 0 ? "no elements are switched on" : $"from the generator, {_main.Password.Length} characters";
+    public string NewHint => _main.Password.Length == 0 ? "no elements are switched on" : $"from the generator, {_main.Password.Length} characters";
     public string StoreNote => _store.CanStore
-        ? "Kept after a restart, locked with your Windows sign-in."
-        : "On this system it is kept only until the app closes.";
+        ? "Kept after a restart, locked with your Windows sign-in. It changes only when you change it."
+        : "On this system it is kept only until the app closes. It changes only when you change it.";
 
     public string TargetTitle => !_typer.Available ? "Typing into other windows works on Windows only"
         : _target?.Title ?? "No other window is open";
@@ -145,7 +180,6 @@ public sealed class ChangePasswordViewModel : ObservableObject
             if (!Set(ref _phase, value)) return;
             Raise(nameof(IsIdle));
             Raise(nameof(IsTyping));
-            Raise(nameof(IsDone));
             NewCommand.RaiseCanExecuteChanged();
             Changed();
         }
@@ -153,19 +187,15 @@ public sealed class ChangePasswordViewModel : ObservableObject
 
     public bool IsIdle => _phase == ChangePhase.Idle;
     public bool IsTyping => _phase == ChangePhase.Typing;
-    public bool IsDone => _phase == ChangePhase.Done;
-    public string DoneText { get => _doneText; private set => Set(ref _doneText, value); }
 
-    /// <summary>Shown when the user tries to close the window before answering "Did the change work?".</summary>
-    public bool AnswerReminder { get => _answerReminder; private set => Set(ref _answerReminder, value); }
-
-    /// <summary>True while the typed password would be lost by closing. The window refuses to close then.</summary>
-    public bool MustAnswerFirst()
+    /// <summary>What was typed last and where, or empty before the first typing.</summary>
+    public string LastTyped
     {
-        if (!IsDone) return false;
-        AnswerReminder = true;
-        return true;
+        get => _lastTyped;
+        private set { if (Set(ref _lastTyped, value)) Changed(); }
     }
+
+    public bool HasLastTyped => _lastTyped.Length > 0;
 
     /// <summary>What stands in the way of typing, or what went wrong last time. Empty when all is well.</summary>
     public string Problem =>
@@ -175,7 +205,8 @@ public sealed class ChangePasswordViewModel : ObservableObject
           ?? (_target is null ? "Open the website or app first, and click into its first password box." : "");
 
     public bool HasProblem => Problem.Length > 0;
-    public bool ShowHint => !HasProblem;
+    public bool ShowHint => !HasProblem && !HasLastTyped;
+    public bool ShowLastTyped => !HasProblem && HasLastTyped;
     public bool CanType => IsIdle && _typer.Available && _target is not null && TypingOrder.Problem(CurrentSteps, _current, NewPassword) is null;
 
     private IReadOnlyList<TypingStep> CurrentSteps => Steps.Select(s => s.Step).ToArray();
@@ -194,14 +225,6 @@ public sealed class ChangePasswordViewModel : ObservableObject
     }
 
     public void Detach() => _main.PropertyChanged -= MainChanged;
-
-    /// <summary>Only for the self-test: shows the "Did the change work?" state without typing anything.</summary>
-    public void ShowDoneForSelfTest()
-    {
-        Hold(_main.Password);
-        DoneText = "Typed into “Sample window”: " + TypingOrder.Describe(CurrentSteps) + ".";
-        Phase = ChangePhase.Done;
-    }
 
     private async void Type()
     {
@@ -223,51 +246,13 @@ public sealed class ChangePasswordViewModel : ObservableObject
         }
 
         var steps = CurrentSteps;
-        var typed = _main.Password; // captured now: this exact text is what reaches the other window
-        var plan = TypingOrder.Plan(steps, _current, typed);
+        var plan = TypingOrder.Plan(steps, _current, _main.Password);
         _error = "";
         Phase = ChangePhase.Typing;
-        var result = await _typer.TypeAsync(target.Handle, plan);
-        if (result.Ok)
-        {
-            Hold(typed);
-            DoneText = $"Typed into “{target.Title}”: {TypingOrder.Describe(steps)}.";
-            Phase = ChangePhase.Done;
-        }
-        else
-        {
-            _error = result.Message;
-            Phase = ChangePhase.Idle;
-        }
-    }
-
-    /// <summary>Keeps the password that was typed, so the generator cannot replace it before the user answers.</summary>
-    private void Hold(string? typed)
-    {
-        _typedNew = typed;
-        Raise(nameof(NewPassword));
-        Raise(nameof(NewDisplay));
-        Raise(nameof(NewHint));
-    }
-
-    /// <summary>The change worked: the password that was typed becomes the current one, and a fresh one is generated.</summary>
-    private void Worked()
-    {
-        var typed = NewPassword;
-        ShowCurrent = false;
-        ShowNew = false;
-        AnswerReminder = false;
-        Current = typed;
-        Hold(null);
-        _main.Regenerate();
-        Phase = ChangePhase.Idle;
-    }
-
-    /// <summary>The change did not work: the current password stays as it is.</summary>
-    private void NotWorked()
-    {
-        AnswerReminder = false;
-        Hold(null);
+        var result = await _typer.TypeAsync(target.Handle, plan, _delays);
+        // Nothing else happens after typing: the current password and the new password both stay as they are.
+        if (result.Ok) LastTyped = $"Typed into “{target.Title}”: {TypingOrder.Describe(steps)}. Your current password was not changed.";
+        else _error = result.Message;
         Phase = ChangePhase.Idle;
     }
 
@@ -335,6 +320,8 @@ public sealed class ChangePasswordViewModel : ObservableObject
         Raise(nameof(Problem));
         Raise(nameof(HasProblem));
         Raise(nameof(ShowHint));
+        Raise(nameof(HasLastTyped));
+        Raise(nameof(ShowLastTyped));
         Raise(nameof(CanType));
         TypeCommand.RaiseCanExecuteChanged();
     }
