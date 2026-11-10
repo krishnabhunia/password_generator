@@ -42,7 +42,8 @@ public partial class MainWindow : Window
         {
             AppState.Save();
             // "Install updates automatically": a downloaded update goes in as the app closes.
-            if (_closingForUpdate || !AppState.Settings.AutoUpdate || !_updates.Ready) return;
+            if (_closingForUpdate || !AppState.Settings.AutoUpdate || _updates.Staged is not { } staged) return;
+            if (!Core.UpdateFeed.Allowed(staged, AppState.Settings.IncludeBeta)) return; // betas were switched off since
             try { _updates.Apply(relaunch: false); }
             catch (Exception e) { AppState.Log("Update on close failed: " + e.Message); }
         };
@@ -57,6 +58,13 @@ public partial class MainWindow : Window
         Width = design.Width;
         DesignHost.Content = design.CreateView();
         AppState.Settings = AppState.Settings with { Design = design.Id };
+    }
+
+    /// <summary>"Also offer beta versions" was changed: a beta that was found or downloaded is dropped.</summary>
+    public void ChannelChanged()
+    {
+        _updates.ApplyChannel(AppState.Settings.IncludeBeta);
+        if (_updates.Found is null && !_vm.UpdateBusy) _vm.UpdateText = null;
     }
 
     /// <summary>Looks for a newer version. Returns a line for the Settings window.</summary>

@@ -16,6 +16,8 @@ public sealed class UpdateService
     private static readonly HttpClient Http = CreateClient();
     private string? _readyFile;
     private ReleaseInfo? _readyRelease;
+    private Task? _download;
+    private string? _downloadTag;
 
     public ReleaseInfo? Found { get; private set; }
     public bool Ready => _readyFile is not null && File.Exists(_readyFile);
@@ -36,8 +38,13 @@ public sealed class UpdateService
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(20));
-            var json = await Http.GetStringAsync(UpdateFeed.ReleasesApi, cts.Token);
-            Found = UpdateFeed.Pick(UpdateFeed.Parse(json), BuildInfo.Version, includeBeta);
+            var releases = new List<ReleaseInfo>(UpdateFeed.Parse(await Http.GetStringAsync(UpdateFeed.ReleasesApi, cts.Token)));
+            // Asked for separately, so a run of beta releases can never push the full release off the list.
+            using (var latest = await Http.GetAsync(UpdateFeed.LatestApi, cts.Token))
+                if (latest.IsSuccessStatusCode) // 404 simply means no full release exists yet
+                    releases.AddRange(UpdateFeed.Parse(await latest.Content.ReadAsStringAsync(cts.Token)));
+            Found = UpdateFeed.Pick(releases, BuildInfo.Version, includeBeta);
+            DropUnless(Found);
             return new UpdateCheck(Found, null);
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -47,10 +54,40 @@ public sealed class UpdateService
         }
     }
 
-    /// <summary>Downloads the right file for this copy of the app and checks its SHA-256.</summary>
-    public async Task DownloadAsync(ReleaseInfo release, CancellationToken ct = default)
+    /// <summary>The downloaded release waiting to be installed, if any.</summary>
+    public ReleaseInfo? Staged => Ready ? _readyRelease : null;
+
+    /// <summary>
+    /// Downloads the right file for this copy of the app and checks its SHA-256.
+    /// A second request for the same release joins the download already running.
+    /// </summary>
+    public Task DownloadAsync(ReleaseInfo release, CancellationToken ct = default)
     {
-        if (Ready && _readyRelease?.Tag == release.Tag) return;
+        if (Ready && _readyRelease?.Tag == release.Tag) return Task.CompletedTask;
+        if (_download is { IsCompleted: false } && _downloadTag == release.Tag) return _download;
+        _downloadTag = release.Tag;
+        return _download = DownloadCoreAsync(release, ct);
+    }
+
+    /// <summary>Forgets a downloaded update unless it is the given release.</summary>
+    public void DropUnless(ReleaseInfo? keep)
+    {
+        if (_readyRelease is null || _readyRelease.Tag == keep?.Tag) return;
+        try { if (_readyFile is not null && File.Exists(_readyFile)) File.Delete(_readyFile); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* removed by CleanUp later */ }
+        _readyFile = null;
+        _readyRelease = null;
+    }
+
+    /// <summary>Call when "Also offer beta versions" changes: a beta found or downloaded earlier no longer counts.</summary>
+    public void ApplyChannel(bool includeBeta)
+    {
+        if (Found is not null && !UpdateFeed.Allowed(Found, includeBeta)) Found = null;
+        if (_readyRelease is not null && !UpdateFeed.Allowed(_readyRelease, includeBeta)) DropUnless(null);
+    }
+
+    private async Task DownloadCoreAsync(ReleaseInfo release, CancellationToken ct)
+    {
         var name = BuildInfo.IsInstalled ? UpdateFeed.SetupAssetName(release.Version) : UpdateFeed.PortableAssetName(release.Version);
         var asset = release.Asset(name) ?? throw new InvalidOperationException($"The release {release.Tag} has no file named {name}.");
         var sums = release.Asset(UpdateFeed.ChecksumsAssetName) ?? throw new InvalidOperationException($"The release {release.Tag} has no checksum list.");
@@ -75,6 +112,7 @@ public sealed class UpdateService
         }
 
         File.Move(temp, target, overwrite: true);
+        if (Found?.Tag != release.Tag) return; // replaced or ruled out while it was downloading
         _readyFile = target;
         _readyRelease = release;
     }

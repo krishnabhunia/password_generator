@@ -34,7 +34,11 @@ public partial class SettingsWindow : Window
         AutoUpdate.IsChecked = AppState.Settings.AutoUpdate;
         IncludeBeta.IsChecked = AppState.Settings.IncludeBeta;
         AutoUpdate.IsCheckedChanged += (_, _) => AppState.Settings = AppState.Settings with { AutoUpdate = AutoUpdate.IsChecked == true };
-        IncludeBeta.IsCheckedChanged += (_, _) => AppState.Settings = AppState.Settings with { IncludeBeta = IncludeBeta.IsChecked == true };
+        IncludeBeta.IsCheckedChanged += (_, _) =>
+        {
+            AppState.Settings = AppState.Settings with { IncludeBeta = IncludeBeta.IsChecked == true };
+            _main?.ChannelChanged();
+        };
         Closing += (_, _) => AppState.Save();
     }
 

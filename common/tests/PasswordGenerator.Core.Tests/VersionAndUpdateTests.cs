@@ -98,6 +98,39 @@ public class UpdateFeedTests
     }
 
     [Fact]
+    public void A_single_release_is_read_too()
+    {
+        // The "latest full release" address returns one release, not a list.
+        var one = UpdateFeed.Parse("""{"tag_name":"v1.2.0","prerelease":false,"draft":false,"assets":[]}""");
+        Assert.Equal("v1.2.0", Assert.Single(one).Tag);
+    }
+
+    [Fact]
+    public void A_full_release_is_found_behind_any_number_of_betas()
+    {
+        // The list holds only betas (as it would after a long run of pull requests);
+        // the full release comes from the separate "latest" request and is still offered.
+        var betas = string.Join(",", Enumerable.Range(1, 100).Select(n =>
+            $$"""{"tag_name":"v1.2.0-beta{{n:000}}","prerelease":true,"draft":false,"assets":[]}"""));
+        var releases = UpdateFeed.Parse("[" + betas + "]").ToList();
+        Assert.Null(UpdateFeed.Pick(releases, V("1.0.0"), includeBeta: false));
+        releases.AddRange(UpdateFeed.Parse("""{"tag_name":"v1.1.0","prerelease":false,"draft":false,"assets":[]}"""));
+        Assert.Equal("v1.1.0", UpdateFeed.Pick(releases, V("1.0.0"), includeBeta: false)!.Tag);
+        Assert.Equal("v1.2.0-beta100", UpdateFeed.Pick(releases, V("1.0.0"), includeBeta: true)!.Tag);
+    }
+
+    [Fact]
+    public void A_beta_is_not_allowed_once_betas_are_switched_off()
+    {
+        var releases = UpdateFeed.Parse(Feed);
+        var beta = releases.Single(r => r.Tag == "v1.1.0-beta002");
+        var full = releases.Single(r => r.Tag == "v1.0.1");
+        Assert.True(UpdateFeed.Allowed(beta, includeBeta: true));
+        Assert.False(UpdateFeed.Allowed(beta, includeBeta: false));
+        Assert.True(UpdateFeed.Allowed(full, includeBeta: false));
+    }
+
+    [Fact]
     public void Feed_that_is_not_a_list_gives_no_releases() => Assert.Empty(UpdateFeed.Parse("""{"message":"rate limited"}"""));
 
     [Fact]

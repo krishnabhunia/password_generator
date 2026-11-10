@@ -15,7 +15,9 @@ public static class UpdateFeed
 {
     public const string Owner = "krishnabhunia";
     public const string Repo = "password_generator";
-    public const string ReleasesApi = "https://api.github.com/repos/" + Owner + "/" + Repo + "/releases?per_page=30";
+    public const string ReleasesApi = "https://api.github.com/repos/" + Owner + "/" + Repo + "/releases?per_page=100";
+    /// <summary>The newest full release, however many betas were published after it.</summary>
+    public const string LatestApi = "https://api.github.com/repos/" + Owner + "/" + Repo + "/releases/latest";
     public const string ReleasesPage = "https://github.com/" + Owner + "/" + Repo + "/releases";
     public const string ChecksumsAssetName = "SHA256SUMS.txt";
 
@@ -23,12 +25,19 @@ public static class UpdateFeed
     public static string SetupAssetName(AppVersion v) => $"PasswordGenerator_{v}_setup.exe";
 
     /// <summary>Releases with a version we understand; drafts and unknown tags are skipped.</summary>
+    /// <remarks>Accepts GitHub's release list or a single release.</remarks>
     public static IReadOnlyList<ReleaseInfo> Parse(string json)
     {
         var list = new List<ReleaseInfo>();
         using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.ValueKind != JsonValueKind.Array) return list;
-        foreach (var r in doc.RootElement.EnumerateArray())
+        // The list address returns an array, the "latest" address a single release.
+        var items = doc.RootElement.ValueKind switch
+        {
+            JsonValueKind.Array => doc.RootElement.EnumerateArray().ToArray(),
+            JsonValueKind.Object when doc.RootElement.TryGetProperty("tag_name", out _) => new[] { doc.RootElement },
+            _ => Array.Empty<JsonElement>(),
+        };
+        foreach (var r in items)
         {
             if (r.ValueKind != JsonValueKind.Object) continue;
             if (Bool(r, "draft")) continue;
@@ -49,9 +58,12 @@ public static class UpdateFeed
     }
 
     /// <summary>The newest release above <paramref name="current"/>, or null. Betas only when asked for.</summary>
+    /// <summary>May this release be installed with the current "offer beta versions" choice?</summary>
+    public static bool Allowed(ReleaseInfo release, bool includeBeta) => includeBeta || !release.Prerelease;
+
     public static ReleaseInfo? Pick(IEnumerable<ReleaseInfo> releases, AppVersion current, bool includeBeta) =>
         releases
-            .Where(r => includeBeta || !r.Prerelease)
+            .Where(r => Allowed(r, includeBeta))
             .Where(r => r.Version.CompareTo(current) > 0)
             .OrderByDescending(r => r.Version)
             .FirstOrDefault();
