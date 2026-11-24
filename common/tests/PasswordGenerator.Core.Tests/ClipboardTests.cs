@@ -10,10 +10,19 @@ public class ClipboardTests
     {
         public string? Text { get; set; }
         public int Clears { get; private set; }
+        /// <summary>How many of the next calls fail as if another program held the clipboard.</summary>
+        public int BusyFor { get; set; }
         public bool KeepsOutOfHistory => true;
-        public Task SetAsync(string text) { Text = text; return Task.CompletedTask; }
-        public Task<string?> GetAsync() => Task.FromResult(Text);
-        public Task ClearAsync() { Text = null; Clears++; return Task.CompletedTask; }
+        public Task SetAsync(string text) { Busy(); Text = text; return Task.CompletedTask; }
+        public Task<string?> GetAsync() { Busy(); return Task.FromResult(Text); }
+        public Task ClearAsync() { Busy(); Text = null; Clears++; return Task.CompletedTask; }
+
+        private void Busy()
+        {
+            if (BusyFor <= 0) return;
+            BusyFor--;
+            throw new IOException("The clipboard is busy.");
+        }
     }
 
     [Theory]
@@ -121,5 +130,52 @@ public class ClipboardTests
         Assert.Null(clipboard.Text);
         Assert.Null(guard.PendingClear);
         Assert.Equal(1, clipboard.Clears);
+    }
+
+    [Fact]
+    public async Task A_failed_copy_keeps_the_earlier_clearing()
+    {
+        var clipboard = new FakeClipboard();
+        var guard = new ClipboardGuard(clipboard);
+        await guard.CopyAsync("First-1!", TimeSpan.FromMinutes(1));
+        clipboard.BusyFor = 1;
+
+        await Assert.ThrowsAsync<IOException>(() => guard.CopyAsync("Second-2!", TimeSpan.FromMinutes(1)));
+
+        Assert.Equal("First-1!", clipboard.Text);
+        Assert.True(guard.HasPending);
+        await guard.ClearNowIfPendingAsync();
+        Assert.Null(clipboard.Text);
+    }
+
+    [Fact]
+    public async Task A_busy_clipboard_is_tried_again_until_it_clears()
+    {
+        var clipboard = new FakeClipboard();
+        var guard = new ClipboardGuard(clipboard, retryDelay: TimeSpan.FromMilliseconds(10));
+        await guard.CopyAsync("Sample-1!", TimeSpan.FromMilliseconds(20));
+        clipboard.BusyFor = 3;
+        await guard.PendingClear!;
+
+        Assert.Null(clipboard.Text);
+        Assert.False(guard.HasPending);
+    }
+
+    [Fact]
+    public async Task A_clipboard_busy_through_every_try_is_still_cleared_on_close()
+    {
+        var clipboard = new FakeClipboard();
+        var guard = new ClipboardGuard(clipboard, retryDelay: TimeSpan.FromMilliseconds(1));
+        await guard.CopyAsync("Sample-1!", TimeSpan.FromMilliseconds(5));
+        clipboard.BusyFor = int.MaxValue;
+        await guard.PendingClear!;
+        Assert.True(guard.HasPending);
+
+        clipboard.BusyFor = 1;
+        await guard.ClearNowIfPendingAsync();   // still busy: kept in mind
+        Assert.True(guard.HasPending);
+        await guard.ClearNowIfPendingAsync();   // free again: cleared
+        Assert.Null(clipboard.Text);
+        Assert.False(guard.HasPending);
     }
 }

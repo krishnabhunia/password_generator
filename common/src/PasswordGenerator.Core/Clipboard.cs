@@ -37,15 +37,25 @@ public interface IPasswordClipboard
 
 /// <summary>
 /// Copies a password and clears it from the clipboard later, but only if the clipboard still holds it:
-/// anything copied since then is left alone. A second copy replaces the first one's clearing.
+/// anything copied since then is left alone. A second copy replaces the first one's clearing. When the clipboard
+/// is busy at clearing time the guard tries again, and it keeps the password in mind until a clearing worked,
+/// so closing the app still clears it.
 /// </summary>
 public sealed class ClipboardGuard
 {
+    /// <summary>How often a busy clipboard is tried again after the clearing time (30 tries, one a second by default).</summary>
+    public const int MaxRetries = 30;
+
     private readonly IPasswordClipboard _clipboard;
+    private readonly TimeSpan _retryDelay;
     private CancellationTokenSource? _pending;
     private string? _pendingText;
 
-    public ClipboardGuard(IPasswordClipboard clipboard) => _clipboard = clipboard;
+    public ClipboardGuard(IPasswordClipboard clipboard, TimeSpan? retryDelay = null)
+    {
+        _clipboard = clipboard;
+        _retryDelay = retryDelay ?? TimeSpan.FromSeconds(1);
+    }
 
     public bool KeepsOutOfHistory => _clipboard.KeepsOutOfHistory;
 
@@ -55,11 +65,18 @@ public sealed class ClipboardGuard
     /// <summary>The clearing that is waiting, for tests; null when nothing waits.</summary>
     public Task? PendingClear { get; private set; }
 
-    /// <summary>Puts the text on the clipboard and, when <paramref name="clearAfter"/> is above zero, clears it after that time.</summary>
+    /// <summary>True while a copied password is still to be cleared.</summary>
+    public bool HasPending => _pendingText is not null;
+
+    /// <summary>
+    /// Puts the text on the clipboard and, when <paramref name="clearAfter"/> is above zero, clears it after that time.
+    /// If the clipboard cannot be written, the exception comes through and an earlier copy's clearing stays as it was.
+    /// </summary>
     public async Task CopyAsync(string text, TimeSpan clearAfter)
     {
-        Cancel();
         await _clipboard.SetAsync(text);
+        // The earlier password is no longer on the clipboard, so its clearing can go.
+        Cancel();
         if (clearAfter <= TimeSpan.Zero) return;
         var cts = new CancellationTokenSource();
         _pending = cts;
@@ -71,8 +88,8 @@ public sealed class ClipboardGuard
     public async Task ClearNowIfPendingAsync()
     {
         if (_pendingText is not { } text) return;
-        Cancel();
-        await ClearIfStillThereAsync(text);
+        var cts = _pending;
+        if (await TryClearAsync(text) && ReferenceEquals(_pending, cts)) Cancel();
     }
 
     /// <summary>Forgets the waiting clearing without touching the clipboard.</summary>
@@ -86,31 +103,46 @@ public sealed class ClipboardGuard
 
     private async Task ClearLaterAsync(string text, TimeSpan delay, CancellationTokenSource cts)
     {
-        try
+        var wait = delay;
+        for (var attempt = 0; ; attempt++)
         {
-            await Task.Delay(delay, cts.Token);
+            try
+            {
+                await Task.Delay(wait, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            if (cts.IsCancellationRequested || !ReferenceEquals(_pending, cts)) return;
+            if (await TryClearAsync(text))
+            {
+                if (ReferenceEquals(_pending, cts))
+                {
+                    _pending = null;
+                    _pendingText = null;
+                }
+                return;
+            }
+            // Busy every time: the password stays in mind, so closing the app still clears it.
+            if (attempt >= MaxRetries) return;
+            wait = _retryDelay;
         }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-        if (cts.IsCancellationRequested || !ReferenceEquals(_pending, cts)) return;
-        _pending = null;
-        _pendingText = null;
-        await ClearIfStillThereAsync(text);
     }
 
-    private async Task ClearIfStillThereAsync(string text)
+    /// <summary>True when the clipboard no longer holds the text (cleared now, or something else was copied); false when it was busy.</summary>
+    private async Task<bool> TryClearAsync(string text)
     {
         try
         {
-            if (await _clipboard.GetAsync() != text) return; // something else was copied since: leave it
+            if (await _clipboard.GetAsync() != text) return true; // something else was copied since: leave it
             await _clipboard.ClearAsync();
             Cleared?.Invoke();
+            return true;
         }
         catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
-            // The clipboard can be busy for a moment; nothing more can be done then.
+            return false; // the clipboard is busy for a moment
         }
     }
 }
