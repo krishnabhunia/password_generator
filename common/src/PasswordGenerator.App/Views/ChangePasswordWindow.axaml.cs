@@ -1,8 +1,10 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using PasswordGenerator.App.Services;
 using PasswordGenerator.App.ViewModels;
+using PasswordGenerator.Core;
 
 namespace PasswordGenerator.App.Views;
 
@@ -13,13 +15,23 @@ public partial class ChangePasswordWindow : Window
     // The XAML loader needs a constructor without arguments.
     public ChangePasswordWindow() : this(new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion)) { }
 
-    public ChangePasswordWindow(MainViewModel main, IKeyboardTyper? typer = null)
+    public ChangePasswordWindow(MainViewModel main, IKeyboardTyper? typer = null, ClipboardGuard? clipboard = null)
     {
         InitializeComponent();
+        clipboard ??= AppState.CopyGuard ?? new ClipboardGuard(PasswordClipboard.Create(
+            () => TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, () => Clipboard));
         _vm = new ChangePasswordViewModel(main, AppState.CurrentPasswordStore(), typer ?? KeyboardTyper.Create(),
-            AppState.Settings.TypingOrder, AppState.Settings.Delays());
+            AppState.Settings.TypingOrder, AppState.Settings.Delays(), clipboard);
         DataContext = _vm;
-        _vm.ClipboardReader = async () => Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
+        _vm.ClipboardReader = async () => Clipboard is { } reader ? await reader.TryGetTextAsync() : null;
+        _vm.ClearSeconds = () => AppState.Settings.ClipboardClearSeconds;
+        // Ctrl+Shift+C copies the new password, also while the current password box has the focus.
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key != Key.C || e.KeyModifiers != (KeyModifiers.Control | KeyModifiers.Shift)) return;
+            _vm.CopyNewCommand.Execute(null);
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
         _vm.OrderChanged += order =>
         {
             AppState.Settings = AppState.Settings with { TypingOrder = order };

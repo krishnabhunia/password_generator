@@ -35,6 +35,15 @@
     </Border>
 
     <Border Classes="card">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h" Text="Clipboard" />
+        <TextBlock Classes="sub" TextWrapping="Wrap"
+                   Text="Clear a new password copied in the Change a password window after this time. Only cleared if the clipboard still holds it." />
+        <StackPanel x:Name="ClearList" Orientation="Horizontal" Spacing="18" Margin="0,2,0,0" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="2" VerticalAlignment="Center">
           <TextBlock Classes="h" Text="About" />

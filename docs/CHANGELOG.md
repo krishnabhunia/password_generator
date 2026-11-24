@@ -1,5 +1,12 @@
 # What's new
 
+## 1.3.0
+- Change a password: new Copy button for the new password, between Show/Hide and New, so you can paste it into Notepad or anywhere else. Ctrl+Shift+C does the same.
+- The button reads Copied for 2 seconds, and a line under the password says when it leaves the clipboard.
+- A copied new password is cleared from the clipboard after 30 seconds if it is still there. Choose Off, 10, 30 or 60 seconds under Clipboard in Settings.
+- On Windows the copied password is kept out of Win + V clipboard history and cloud clipboard.
+- The Change a password window is a little wider to make room for the button.
+
 ## 1.2.0
 - Change a password: the current password now stays until you change it yourself. The app never replaces it.
 - The "Did the change work?" question with Yes and No is gone. After typing, the window is simply ready again.

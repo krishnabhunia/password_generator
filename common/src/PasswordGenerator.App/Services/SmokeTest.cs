@@ -52,6 +52,17 @@ public sealed class SampleTyper : IKeyboardTyper
     }
 }
 
+/// <summary>Self-test stand-in for the clipboard: holds text in memory and never touches the real clipboard.</summary>
+public sealed class SampleClipboard : IPasswordClipboard
+{
+    public string? Text { get; set; }
+    public int Clears { get; private set; }
+    public bool KeepsOutOfHistory => true;
+    public Task SetAsync(string text) { Text = text; return Task.CompletedTask; }
+    public Task<string?> GetAsync() => Task.FromResult(Text);
+    public Task ClearAsync() { Text = null; Clears++; return Task.CompletedTask; }
+}
+
 /// <summary>A window with three boxes that the self-test types into, to prove the typing really arrives.</summary>
 public sealed class TypingProbeWindow : Window
 {
@@ -159,7 +170,8 @@ public static class SmokeTest
                 window.ApplyDesign(design.Id);
                 Reset(vm);
                 await Settle();
-                var change = window.ShowChangePassword(new SampleTyper());
+                var sampleClipboard = new SampleClipboard();
+                var change = window.ShowChangePassword(new SampleTyper(), new ClipboardGuard(sampleClipboard));
                 var cvm = change.ViewModel;
                 cvm.Current = "";
                 await Settle();
@@ -172,6 +184,15 @@ public static class SmokeTest
                 var height = Check(change, "Change a password " + design.Id, failures);
                 if (!cvm.CanType) failures.Add("Typing is not offered although everything is filled in: " + cvm.Problem);
                 Save(change, Path.Combine(dir, $"change-{design.Id}.png"));
+
+                // Copy: the button reads "Copied" and a note says when the clipboard is cleared.
+                cvm.CopyNewCommand.Execute(null);
+                if (cvm.LastCopy is { } copying) await copying;
+                await Settle();
+                var copiedHeight = Check(change, "Change a password (copied) " + design.Id, failures);
+                if (Math.Abs(copiedHeight - height) > 0.5) failures.Add($"Change a password {design.Id}: height changes from {height:0} to {copiedHeight:0} after Copy");
+                if (sampleClipboard.Text != vm.Password || !cvm.NewCopied) failures.Add("Copy did not put the new password on the clipboard");
+                Save(change, Path.Combine(dir, $"change-{design.Id}-copied.png"));
 
                 // Everything shown and the longest order, to see the chips wrap.
                 cvm.ShowCurrent = true;
@@ -207,6 +228,7 @@ public static class SmokeTest
             log.AppendLine(OperatingSystem.IsWindows() ? "Encrypted store: saved, read back and removed" : "Encrypted store: not available on this system, nothing written");
 
             await TypingCheck(failures, log);
+            await ClipboardCheck(window, failures, log);
             window.ApplyDesign(DesignInfo.All[0].Id);
         }
         catch (Exception e)
@@ -224,7 +246,9 @@ public static class SmokeTest
     {
         const string sampleCurrent = "Old-Sample-1!";
         var typer = new SampleTyper();
-        var change = window.ShowChangePassword(typer);
+        var clipboard = new SampleClipboard();
+        var guard = new ClipboardGuard(clipboard);
+        var change = window.ShowChangePassword(typer, guard);
         var cvm = change.ViewModel;
         cvm.Current = sampleCurrent;
         await Settle();
@@ -263,7 +287,10 @@ public static class SmokeTest
         if (vm.Password == typed) failures.Add("Change rules: New did not make another new password");
         if (cvm.Current != sampleCurrent) failures.Add("Change rules: New changed the current password");
 
-        // 5. The window closes whenever the user wants, and the current password is still there afterwards.
+        // 5. Copy: the whole new password, also while hidden; Ctrl+Shift+C does the same; the Settings time is used.
+        await CopyRules(change, cvm, vm, clipboard, guard, sampleCurrent, failures);
+
+        // 6. The window closes whenever the user wants, and the current password is still there afterwards.
         change.Close();
         await Settle();
         if (change.IsVisible) failures.Add("Change rules: the window did not close");
@@ -277,6 +304,83 @@ public static class SmokeTest
         again.Close();
         await Settle();
         log.AppendLine("Change rules: shown window only, delays passed on and saved, nothing changes after typing");
+    }
+
+    /// <summary>The Copy button of the Change a password window.</summary>
+    private static async Task CopyRules(ChangePasswordWindow window, ChangePasswordViewModel cvm, MainViewModel vm,
+        SampleClipboard clipboard, ClipboardGuard guard, string sampleCurrent, List<string> failures)
+    {
+        var saved = AppState.Settings;
+        cvm.ShowNew = false;
+        cvm.CopyNewCommand.Execute(null);
+        if (cvm.LastCopy is { } first) await first;
+        if (clipboard.Text != vm.Password) failures.Add("Copy rules: the hidden new password was not copied in full");
+        if (cvm.CopyNewLabel != "Copied" || !cvm.CopyNote.Contains("30 s") || !cvm.CopyNote.Contains("Win + V"))
+            failures.Add($"Copy rules: after Copy the button reads \"{cvm.CopyNewLabel}\" and the note \"{cvm.CopyNote}\"");
+        if (guard.PendingClear is null) failures.Add("Copy rules: no clearing was planned after Copy");
+
+        // Ctrl+Shift+C, with the focus in the current password box.
+        clipboard.Text = "something else";
+        window.FindControl<TextBox>("CurrentBox")?.Focus();
+        window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.C, KeyModifiers = KeyModifiers.Control | KeyModifiers.Shift });
+        if (cvm.LastCopy is { } second) await second;
+        if (clipboard.Text != vm.Password) failures.Add("Copy rules: Ctrl+Shift+C did not copy the new password");
+
+        // "Off" in Settings: copied, and nothing is planned.
+        AppState.Settings = saved with { ClipboardClearSeconds = 0 };
+        cvm.CopyNewCommand.Execute(null);
+        if (cvm.LastCopy is { } third) await third;
+        if (guard.PendingClear is not null || cvm.CopyNote.Contains(" s ")) failures.Add("Copy rules: Off still plans a clearing: " + cvm.CopyNote);
+        AppState.Settings = saved;
+
+        // Copying changes neither password.
+        if (cvm.Current != sampleCurrent) failures.Add("Copy rules: Copy changed the current password");
+        if (cvm.NewPassword != vm.Password || clipboard.Text != vm.Password) failures.Add("Copy rules: Copy changed the new password");
+
+        // Clearing: the guard clears only what it copied.
+        await guard.ClearNowIfPendingAsync();
+        await guard.CopyAsync(vm.Password, TimeSpan.FromMinutes(1));
+        await guard.ClearNowIfPendingAsync();
+        await Settle();
+        if (clipboard.Text is not null || cvm.CopyNote != ClipboardClear.ClearedNote) failures.Add("Copy rules: the copied password was not cleared, or the note did not say so: " + cvm.CopyNote);
+        guard.Cancel();
+    }
+
+    /// <summary>Windows only: the real clipboard holds the copied text with the formats that keep it out of Win + V history.</summary>
+    private static async Task ClipboardCheck(Window owner, List<string> failures, StringBuilder log)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            log.AppendLine("Clipboard check: skipped (the history opt-outs are Windows only)");
+            return;
+        }
+        const string sample = "Copy-Sample-3#";
+        var handle = owner.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        var clipboard = new WindowsPasswordClipboard(() => handle);
+        try
+        {
+            var guard = new ClipboardGuard(clipboard);
+            await guard.CopyAsync(sample, TimeSpan.FromMilliseconds(400));
+            if (await clipboard.GetAsync() != sample) failures.Add("Clipboard check: the copied text did not read back");
+            var missing = new List<string>();
+            foreach (var format in WindowsPasswordClipboard.PrivacyFormats)
+                if (!WindowsPasswordClipboard.HasFormat(format)) missing.Add(format);
+            if (missing.Count > 0) failures.Add("Clipboard check: missing formats " + string.Join(", ", missing));
+            await Task.Delay(1200);
+            if (await clipboard.GetAsync() is not null) failures.Add("Clipboard check: the copied text was not cleared after 400 ms");
+            else log.AppendLine("Clipboard check: copied with " + string.Join(", ", WindowsPasswordClipboard.PrivacyFormats) + ", cleared after 400 ms");
+
+            // Something copied afterwards is never cleared.
+            await guard.CopyAsync(sample, TimeSpan.FromMilliseconds(400));
+            await clipboard.SetAsync("Something-else");
+            await Task.Delay(1200);
+            if (await clipboard.GetAsync() != "Something-else") failures.Add("Clipboard check: text copied afterwards was cleared");
+            await clipboard.ClearAsync();
+        }
+        catch (IOException e)
+        {
+            failures.Add("Clipboard check: " + e.Message);
+        }
     }
 
     /// <summary>Windows only: really types a sample sequence into a window of our own and checks what arrived.</summary>

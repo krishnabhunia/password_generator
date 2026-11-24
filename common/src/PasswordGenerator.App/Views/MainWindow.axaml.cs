@@ -22,6 +22,8 @@ public partial class MainWindow : Window
         _vm = vm;
         DataContext = vm;
         vm.CopyHandler = text => Clipboard is { } clipboard ? clipboard.SetTextAsync(text) : Task.CompletedTask;
+        AppState.CopyGuard ??= new Core.ClipboardGuard(PasswordClipboard.Create(
+            () => TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, () => Clipboard));
         vm.InfoRequested += ShowInfo;
         vm.SettingsRequested += ShowSettings;
         vm.ChangePasswordRequested += () => ShowChangePassword();
@@ -44,6 +46,9 @@ public partial class MainWindow : Window
         Closing += (_, _) =>
         {
             AppState.Save();
+            // A password copied in the Change a password window must not outlive the app. On Windows this
+            // finishes before the call returns; elsewhere it is a best effort.
+            _ = AppState.CopyGuard?.ClearNowIfPendingAsync();
             // "Install updates automatically": a downloaded update goes in as the app closes.
             if (_closingForUpdate || !AppState.Settings.AutoUpdate || _updates.Staged is not { } staged) return;
             if (!Core.UpdateFeed.Allowed(staged, AppState.Settings.IncludeBeta)) return; // betas were switched off since
@@ -116,14 +121,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Opens the Change a password window, or brings it forward when it is already open.</summary>
-    public ChangePasswordWindow ShowChangePassword(IKeyboardTyper? typer = null)
+    public ChangePasswordWindow ShowChangePassword(IKeyboardTyper? typer = null, Core.ClipboardGuard? clipboard = null)
     {
         if (_changeWindow is { } open)
         {
             open.Activate();
             return open;
         }
-        var window = new ChangePasswordWindow(_vm, typer);
+        var window = new ChangePasswordWindow(_vm, typer, clipboard);
         window.Closed += (_, _) => _changeWindow = null;
         _changeWindow = window;
         window.Show(this);
