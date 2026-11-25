@@ -29,6 +29,9 @@
 - After typing, the window is ready again and says what was typed. Nothing else changes.
 - The current password stays exactly as it is until you change it yourself with Paste, by typing in the box, or with Forget it.
 - The new password stays on screen after typing, until you press New or Regenerate.
+- Copy, between Show/Hide and New, copies the whole new password, also while it is hidden. The button reads Copied for 2 seconds, and Ctrl+Shift+C does the same.
+- A copied new password is cleared from the clipboard after 30 seconds, but only if the clipboard still holds it. Off, 10, 30 or 60 seconds is chosen in Settings, and a waiting password is cleared when the app closes.
+- On Windows the copied new password is kept out of Win + V clipboard history and cloud clipboard.
 
 ## Designs
 - Two-pane Light (the default): choices on the left, password on the right.

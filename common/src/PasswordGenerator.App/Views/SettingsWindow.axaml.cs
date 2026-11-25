@@ -1,6 +1,8 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PasswordGenerator.App.Services;
+using PasswordGenerator.Core;
 
 namespace PasswordGenerator.App.Views;
 
@@ -29,6 +31,22 @@ public partial class SettingsWindow : Window
                 if (radio.IsChecked == true && AppState.Settings.Design != design.Id) _main?.ApplyDesign(design.Id);
             };
             DesignList.Children.Add(radio);
+        }
+
+        foreach (var seconds in ClipboardClear.Choices)
+        {
+            var radio = new RadioButton
+            {
+                GroupName = "clipboard",
+                Content = new TextBlock { Text = ClipboardClear.Label(seconds) },
+                IsChecked = seconds == AppState.Settings.ClipboardClearSeconds,
+            };
+            AutomationProperties.SetName(radio, "Clear the clipboard: " + ClipboardClear.Label(seconds));
+            radio.IsCheckedChanged += (_, _) =>
+            {
+                if (radio.IsChecked == true) AppState.Settings = AppState.Settings with { ClipboardClearSeconds = seconds };
+            };
+            ClearList.Children.Add(radio);
         }
 
         AutoUpdate.IsChecked = AppState.Settings.AutoUpdate;

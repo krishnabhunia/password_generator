@@ -26,6 +26,12 @@ public static class AppState
 
     public static AppSettings Settings { get; set; } = new();
 
+    /// <summary>
+    /// Copies passwords and clears them from the clipboard later. One for the whole app (set up by the main window),
+    /// so a clearing still happens after the Change a password window is closed, and at the latest when the app closes.
+    /// </summary>
+    public static ClipboardGuard? CopyGuard { get; set; }
+
     public static void ReadArguments(string[] args)
     {
         var dataDirGiven = false;

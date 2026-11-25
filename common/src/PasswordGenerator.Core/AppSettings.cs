@@ -21,6 +21,8 @@ public sealed record AppSettings
     public int CharDelayMs { get; init; } = TypingDelays.DefaultCharMs;
     /// <summary>Pause after every Tab or Enter, in milliseconds.</summary>
     public int TabDelayMs { get; init; } = TypingDelays.DefaultKeyMs;
+    /// <summary>Seconds a password copied in the Change a password window stays on the clipboard; 0 is Off.</summary>
+    public int ClipboardClearSeconds { get; init; } = ClipboardClear.DefaultSeconds;
 
     public TypingDelays Delays() => new TypingDelays(CharDelayMs, TabDelayMs).Normalized();
 
@@ -31,6 +33,7 @@ public sealed record AppSettings
         TypingOrder = TypingOrder is null ? null : Core.TypingOrder.Names(Core.TypingOrder.Parse(TypingOrder)),
         CharDelayMs = Delays().CharMs,
         TabDelayMs = Delays().KeyMs,
+        ClipboardClearSeconds = ClipboardClear.Normalize(ClipboardClearSeconds),
     };
 }
 

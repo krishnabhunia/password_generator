@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Input;
+using Avalonia.Threading;
 using PasswordGenerator.App.Services;
 using PasswordGenerator.Core;
 
@@ -49,12 +50,20 @@ public sealed class ChangePasswordViewModel : ObservableObject
     private string _lastTyped = "";
     private string _error = "";
     private TypingDelays _delays;
+    private readonly ClipboardGuard? _clipboard;
+    private readonly DispatcherTimer _copiedTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private bool _newCopied;
+    private string _copyNote = "";
 
-    public ChangePasswordViewModel(MainViewModel main, SecretFile store, IKeyboardTyper typer, IEnumerable<string>? savedOrder, TypingDelays? delays = null)
+    public ChangePasswordViewModel(MainViewModel main, SecretFile store, IKeyboardTyper typer, IEnumerable<string>? savedOrder,
+        TypingDelays? delays = null, ClipboardGuard? clipboard = null)
     {
         _main = main;
         _store = store;
         _typer = typer;
+        _clipboard = clipboard;
+        _copiedTimer.Tick += (_, _) => NewCopied = false;
+        if (_clipboard is not null) _clipboard.Cleared += OnClipboardCleared;
         _delays = (delays ?? new TypingDelays()).Normalized();
         _current = store.Load();
         Steps = new ObservableCollection<StepVm>(TypingOrder.Parse(savedOrder).Select(Make));
@@ -67,6 +76,7 @@ public sealed class ChangePasswordViewModel : ObservableObject
         ForgetCommand = new RelayCommand(() => { Current = ""; ShowCurrent = false; });
         PasteCommand = new RelayCommand(Paste);
         NewCommand = new RelayCommand(() => { if (IsIdle) _main.Regenerate(); }, () => IsIdle);
+        CopyNewCommand = new RelayCommand(() => LastCopy = CopyNewAsync());
         ResetCommand = new RelayCommand(() => SetSteps(TypingOrder.Default));
         TypeCommand = new RelayCommand(Type, () => CanType);
         CharDelayDownCommand = new RelayCommand(() => CharDelayMs -= TypingDelays.CharStepMs);
@@ -84,6 +94,8 @@ public sealed class ChangePasswordViewModel : ObservableObject
     public ICommand ForgetCommand { get; }
     public ICommand PasteCommand { get; }
     public RelayCommand NewCommand { get; }
+    /// <summary>Copies the new password (also while it is hidden). Ctrl+Shift+C does the same.</summary>
+    public ICommand CopyNewCommand { get; }
     public ICommand ResetCommand { get; }
     public RelayCommand TypeCommand { get; }
     public ICommand CharDelayDownCommand { get; }
@@ -93,6 +105,35 @@ public sealed class ChangePasswordViewModel : ObservableObject
 
     /// <summary>Set by the window: reads text from the clipboard.</summary>
     public Func<Task<string?>>? ClipboardReader { get; set; }
+    /// <summary>Set by the window: the Settings choice of how long a copied password stays on the clipboard (0 = Off).</summary>
+    public Func<int> ClearSeconds { get; set; } = () => ClipboardClear.DefaultSeconds;
+    /// <summary>The last copy, so the self-test can wait for it.</summary>
+    public Task? LastCopy { get; private set; }
+
+    /// <summary>True for 2 seconds after Copy: the button reads "Copied".</summary>
+    public bool NewCopied
+    {
+        get => _newCopied;
+        private set
+        {
+            if (!Set(ref _newCopied, value)) return;
+            Raise(nameof(CopyNewLabel));
+            Raise(nameof(NotNewCopied));
+            if (!value) _copiedTimer.Stop();
+        }
+    }
+
+    public bool NotNewCopied => !_newCopied;
+    public string CopyNewLabel => _newCopied ? "Copied" : "Copy";
+
+    /// <summary>The line under the new password after Copy: when it leaves the clipboard. Empty before the first copy.</summary>
+    public string CopyNote
+    {
+        get => _copyNote;
+        private set { if (Set(ref _copyNote, value)) Raise(nameof(HasCopyNote)); }
+    }
+
+    public bool HasCopyNote => _copyNote.Length > 0;
     /// <summary>Raised when the typing order changes, so it can be saved.</summary>
     public event Action<IReadOnlyList<string>>? OrderChanged;
     /// <summary>Raised when a typing delay changes, so it can be saved.</summary>
@@ -224,7 +265,35 @@ public sealed class ChangePasswordViewModel : ObservableObject
         Changed();
     }
 
-    public void Detach() => _main.PropertyChanged -= MainChanged;
+    public void Detach()
+    {
+        _main.PropertyChanged -= MainChanged;
+        if (_clipboard is not null) _clipboard.Cleared -= OnClipboardCleared;
+        _copiedTimer.Stop();
+    }
+
+    private async Task CopyNewAsync()
+    {
+        var password = NewPassword;
+        if (_clipboard is null || password.Length == 0) return;
+        var seconds = ClipboardClear.Normalize(ClearSeconds());
+        try
+        {
+            await _clipboard.CopyAsync(password, TimeSpan.FromSeconds(seconds));
+            NewCopied = true;
+            _copiedTimer.Stop();
+            _copiedTimer.Start();
+            CopyNote = ClipboardClear.CopiedNote(seconds, _clipboard.KeepsOutOfHistory);
+        }
+        catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            // The clipboard can be busy for a moment; say so and let the user press Copy again.
+            NewCopied = false;
+            CopyNote = ClipboardClear.BusyNote;
+        }
+    }
+
+    private void OnClipboardCleared() => CopyNote = ClipboardClear.ClearedNote;
 
     private async void Type()
     {
@@ -310,6 +379,7 @@ public sealed class ChangePasswordViewModel : ObservableObject
     private void MainChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(MainViewModel.Password)) return;
+        NewCopied = false; // the button speaks about the password on screen; the note still describes the clipboard
         Raise(nameof(NewDisplay));
         Raise(nameof(NewHint));
         Changed();
