@@ -229,6 +229,7 @@ public static class SmokeTest
 
             await TypingCheck(failures, log);
             await ClipboardCheck(window, failures, log);
+            await ResizeRules(window, vm, dir, failures, log);
             window.ApplyDesign(DesignInfo.All[0].Id);
         }
         catch (Exception e)
@@ -304,6 +305,239 @@ public static class SmokeTest
         again.Close();
         await Settle();
         log.AppendLine("Change rules: shown window only, delays passed on and saved, nothing changes after typing");
+    }
+
+    /// <summary>
+    /// Resizable windows (design A): never smaller than today's size, the right side takes the extra width,
+    /// the password's text grows, and the size is remembered.
+    /// </summary>
+    private static async Task ResizeRules(MainWindow window, MainViewModel vm, string dir, List<string> failures, StringBuilder log)
+    {
+        var sizes = new List<string>();
+        foreach (var design in DesignInfo.All)
+        {
+            var name = "Resize " + design.Id;
+            window.ApplyDesign(design.Id);
+            window.Sizer.Reset();
+            Reset(vm);
+            await Settle();
+            var smallest = window.ClientSize;
+            if (!window.CanResize) failures.Add($"{name}: the window cannot be resized");
+            if (Math.Abs(window.MinWidth - design.Width) > 0.5 || Math.Abs(window.MinHeight - smallest.Height) > 1)
+                failures.Add($"{name}: the smallest size is {window.MinWidth:0}x{window.MinHeight:0}, expected today's size {design.Width:0}x{smallest.Height:0}");
+            if (window.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "PwdList") is not { } list)
+            {
+                failures.Add($"{name}: the password's characters were not found");
+                continue;
+            }
+            var baseFont = list.FontSize;
+            var listWidth = list.Bounds.Width;
+
+            // Smaller than today's size is refused.
+            window.Sizer.Resize(design.Width - 200, smallest.Height - 200);
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - smallest.Width) > 1 || Math.Abs(window.ClientSize.Height - smallest.Height) > 1)
+                failures.Add($"{name}: the window became {window.ClientSize.Width:0}x{window.ClientSize.Height:0}, smaller than today's {smallest.Width:0}x{smallest.Height:0}");
+
+            // Larger: the screen may limit how much, so the rules are checked against the size the window really got.
+            var wanted = OnScreen(window, design.Width + 320, smallest.Height + 90);
+            window.Sizer.Resize(wanted.Width, wanted.Height);
+            await Settle();
+            var big = window.ClientSize;
+            var wider = big.Width - smallest.Width;
+            if (wider < -0.5 || big.Height < smallest.Height - 0.5) failures.Add($"{name}: resizing made the window smaller ({big.Width:0}x{big.Height:0})");
+            if (wider < 20 && design.Width < 900) failures.Add($"{name}: the window did not get wider ({big.Width:0})");
+            Check(window, name, failures, limitHeight: false);
+            // Design A: the password takes the extra width, and its text grows with the window up to 1.5 times.
+            if (Math.Abs(list.Bounds.Width - listWidth - wider) > 2)
+                failures.Add($"{name}: the window is {wider:0} wider but the password got {list.Bounds.Width - listWidth:0} more");
+            var font = WindowPlacements.TextSize(baseFont, big.Width, design.Width);
+            if (Math.Abs(list.FontSize - font) > 0.01) failures.Add($"{name}: the password's text is {list.FontSize} at width {big.Width:0}, expected {font}");
+            if (list.FontSize > baseFont * WindowPlacements.MaxTextScale + 0.01) failures.Add($"{name}: the password's text grew past 1.5 times");
+            Save(window, Path.Combine(dir, $"resized-{design.Id}.png"));
+
+            vm.Length = 64;
+            foreach (var e in vm.AllElements) e.Min = 9;
+            await Settle();
+            Check(window, name + " (64 characters)", failures, limitHeight: false);
+            Reset(vm);
+            await Settle();
+
+            // Another design and back: every design remembers its own size.
+            var other = DesignInfo.All.First(d => d.Width != design.Width);
+            window.ApplyDesign(other.Id);
+            await Settle();
+            if (Math.Abs(window.MinWidth - other.Width) > 0.5) failures.Add($"{name}: after switching to {other.Id} the smallest width is {window.MinWidth:0}");
+            window.ApplyDesign(design.Id);
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - big.Width) > 1 || Math.Abs(window.ClientSize.Height - big.Height) > 1)
+                failures.Add($"{name}: the size {big.Width:0}x{big.Height:0} was not remembered, the window is {window.ClientSize.Width:0}x{window.ClientSize.Height:0}");
+            sizes.Add($"{design.Id} {smallest.Width:0}x{smallest.Height:0} to {big.Width:0}x{big.Height:0} (text {baseFont} to {list.FontSize})");
+
+            // Back to today's size, with the height following the content again.
+            window.Sizer.Reset();
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - smallest.Width) > 1 || Math.Abs(window.ClientSize.Height - smallest.Height) > 1)
+                failures.Add($"{name}: after a reset the window is {window.ClientSize.Width:0}x{window.ClientSize.Height:0}, expected {smallest.Width:0}x{smallest.Height:0}");
+            if (!window.Sizer.FollowsContent) failures.Add($"{name}: after a reset the height does not follow the content");
+        }
+        log.AppendLine("Resize: " + string.Join("; ", sizes));
+
+        // Maximize and restore.
+        window.ApplyDesign(DesignInfo.All[0].Id);
+        Reset(vm);
+        await Settle();
+        var before = window.ClientSize;
+        window.WindowState = WindowState.Maximized;
+        await Settle();
+        await Settle();
+        var maximized = window.ClientSize;
+        if (window.WindowState == WindowState.Maximized && (maximized.Width > before.Width + 1 || maximized.Height > before.Height + 1))
+        {
+            Check(window, "Maximized", failures, limitHeight: false);
+            Save(window, Path.Combine(dir, "maximized.png"));
+            window.Sizer.Save();
+            var saved = AppState.Settings.Windows?.GetValueOrDefault(WindowPlacements.MainKey(DesignInfo.All[0].Id));
+            if (saved is not { Maximized: true }) failures.Add("Maximized: the maximized state was not remembered");
+            else if (Math.Abs(saved.Width - before.Width) > 1 || saved.Height != 0)
+                failures.Add($"Maximized: the size to restore to was saved as {saved.Width:0}x{saved.Height:0}, expected {before.Width:0} wide with the height following the content");
+            window.WindowState = WindowState.Normal;
+            await Settle();
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - before.Width) > 1 || Math.Abs(window.ClientSize.Height - before.Height) > 1)
+                failures.Add($"Maximized: restoring gave {window.ClientSize.Width:0}x{window.ClientSize.Height:0}, expected {before.Width:0}x{before.Height:0}");
+            // The height still follows the content after maximize and restore.
+            vm.UpdateText = "Update to v9.9.9";
+            await Settle();
+            if (window.ClientSize.Height < before.Height + 10) failures.Add("Maximized: after restoring, the window no longer grows with its content");
+            vm.UpdateText = null;
+            await Settle();
+            if (Math.Abs(window.ClientSize.Height - before.Height) > 1) failures.Add("Maximized: after restoring, the window no longer shrinks with its content");
+
+            // A design chosen while the window is maximized keeps its own size: nothing of the design before it is saved under its name.
+            var compact = DesignInfo.All.First(d => d.Id == "Compact");
+            window.WindowState = WindowState.Maximized;
+            await Settle();
+            await Settle();
+            window.ApplyDesign(compact.Id);
+            await Settle();
+            if (window.WindowState != WindowState.Maximized) failures.Add("Maximized: choosing another design ended the maximized state");
+            Check(window, "Maximized Compact", failures, limitHeight: false);
+            window.Sizer.Save();
+            var savedCompact = AppState.Settings.Windows?.GetValueOrDefault(WindowPlacements.MainKey(compact.Id));
+            if (savedCompact is not { Maximized: true } || Math.Abs(savedCompact.Width - compact.Width) > 1 || savedCompact.Height != 0)
+                failures.Add($"Maximized: Compact, chosen while maximized, was saved as {savedCompact?.Width:0}x{savedCompact?.Height:0}, expected {compact.Width:0} wide with the height following the content");
+            window.WindowState = WindowState.Normal;
+            await Settle();
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - compact.Width) > 1 || Math.Abs(window.ClientSize.Height - window.Sizer.SmallestHeight) > 1 || !window.Sizer.FollowsContent)
+                failures.Add($"Maximized: restoring in Compact gave {window.ClientSize.Width:0}x{window.ClientSize.Height:0}, expected {compact.Width:0}x{window.Sizer.SmallestHeight:0} following the content");
+            var compactSize = window.ClientSize;
+            window.Sizer.Reset();
+            window.ApplyDesign(DesignInfo.All[0].Id);
+            await Settle();
+            log.AppendLine($"Maximize: {before.Width:0}x{before.Height:0} to {maximized.Width:0}x{maximized.Height:0} and back; Compact chosen while maximized restores to {compactSize.Width:0}x{compactSize.Height:0}");
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            failures.Add($"Maximized: the window did not maximize (state {window.WindowState}, {maximized.Width:0}x{maximized.Height:0})");
+        }
+        else
+        {
+            window.WindowState = WindowState.Normal;
+            await Settle();
+            log.AppendLine("Maximize: skipped (no window manager on this system)");
+        }
+        window.Sizer.Reset();
+        await Settle();
+
+        // The Change a password window: the typing pane takes the extra width, and the size comes back after closing.
+        var change = window.ShowChangePassword(new SampleTyper(), new ClipboardGuard(new SampleClipboard()));
+        change.Sizer.Reset();
+        change.ViewModel.Current = "Old-Sample-1!";
+        await Settle();
+        var small = change.ClientSize;
+        var target = change.FindControl<TextBlock>("TargetText");
+        var current = change.FindControl<TextBox>("CurrentBox");
+        var targetWidth = target?.Bounds.Width ?? 0;
+        var currentWidth = current?.Bounds.Width ?? 0;
+        if (!change.CanResize) failures.Add("Resize Change a password: the window cannot be resized");
+        if (Math.Abs(change.MinWidth - ChangePasswordWindow.SmallestWidth) > 0.5 || Math.Abs(change.MinHeight - small.Height) > 1)
+            failures.Add($"Resize Change a password: the smallest size is {change.MinWidth:0}x{change.MinHeight:0}, expected {small.Width:0}x{small.Height:0}");
+        var wantedChange = OnScreen(change, small.Width + 240, small.Height + 80);
+        change.Sizer.Resize(wantedChange.Width, wantedChange.Height);
+        await Settle();
+        var large = change.ClientSize;
+        Check(change, "Resize Change a password", failures, limitHeight: false);
+        var extra = large.Width - small.Width;
+        if (target is null || current is null) failures.Add("Resize Change a password: the panes were not found");
+        else
+        {
+            if (Math.Abs(target.Bounds.Width - targetWidth - extra) > 2) failures.Add($"Resize Change a password: the window is {extra:0} wider but the typing pane got {target.Bounds.Width - targetWidth:0} more");
+            if (Math.Abs(current.Bounds.Width - currentWidth) > 0.5) failures.Add("Resize Change a password: the passwords pane changed its width");
+        }
+        // With the longest typing order the window must still hold everything.
+        while (change.ViewModel.Steps.Count < TypingOrder.MaxSteps) change.ViewModel.Adders[change.ViewModel.Steps.Count % change.ViewModel.Adders.Count].Command.Execute(null);
+        await Settle();
+        Check(change, "Resize Change a password (12 steps)", failures, limitHeight: false);
+        change.ViewModel.ResetCommand.Execute(null);
+        await Settle();
+        Save(change, Path.Combine(dir, "resized-change.png"));
+        change.Close();
+        await Settle();
+        var onDisk = SettingsStore.Load(AppState.SettingsPath).Windows?.GetValueOrDefault(WindowPlacements.ChangeKey);
+        if (onDisk is null || Math.Abs(onDisk.Width - large.Width) > 1 || Math.Abs(onDisk.Height - large.Height) > 1)
+            failures.Add($"Resize Change a password: the settings file holds {onDisk?.Width:0}x{onDisk?.Height:0}, expected {large.Width:0}x{large.Height:0}");
+        var reopened = window.ShowChangePassword(new SampleTyper(), new ClipboardGuard(new SampleClipboard()));
+        await Settle();
+        if (Math.Abs(reopened.ClientSize.Width - large.Width) > 1 || Math.Abs(reopened.ClientSize.Height - large.Height) > 1)
+            failures.Add($"Resize Change a password: reopened at {reopened.ClientSize.Width:0}x{reopened.ClientSize.Height:0}, expected {large.Width:0}x{large.Height:0}");
+        reopened.Sizer.Reset();
+        reopened.ViewModel.Current = "";
+        await Settle();
+        if (Math.Abs(reopened.ClientSize.Height - (small.Height)) > 40) failures.Add($"Resize Change a password: after a reset the window is {reopened.ClientSize.Height:0} high");
+        reopened.Close();
+        await Settle();
+        log.AppendLine($"Resize Change a password: {small.Width:0}x{small.Height:0} to {large.Width:0}x{large.Height:0}, remembered after closing");
+
+        // The Info window is resizable too; Settings stays fixed.
+        var info = new InfoWindow();
+        info.Show();
+        info.Sizer.Reset();
+        await Settle();
+        if (!info.CanResize || Math.Abs(info.MinWidth - InfoWindow.SmallestWidth) > 0.5 || Math.Abs(info.MinHeight - InfoWindow.SmallestHeight) > 0.5)
+            failures.Add($"Resize Info: resizable {info.CanResize}, smallest size {info.MinWidth:0}x{info.MinHeight:0}");
+        if (Math.Abs(info.ClientSize.Width - InfoWindow.SmallestWidth) > 1 || Math.Abs(info.ClientSize.Height - InfoWindow.SmallestHeight) > 1)
+            failures.Add($"Resize Info: opens at {info.ClientSize.Width:0}x{info.ClientSize.Height:0}");
+        info.Sizer.Resize(InfoWindow.SmallestWidth + 180, InfoWindow.SmallestHeight + 100);
+        info.SelectTab(1);
+        await Settle();
+        var infoSize = info.ClientSize;
+        Save(info, Path.Combine(dir, "resized-info.png"));
+        info.Close();
+        await Settle();
+        var infoAgain = new InfoWindow();
+        infoAgain.Show();
+        await Settle();
+        if (Math.Abs(infoAgain.ClientSize.Width - infoSize.Width) > 1 || Math.Abs(infoAgain.ClientSize.Height - infoSize.Height) > 1)
+            failures.Add($"Resize Info: reopened at {infoAgain.ClientSize.Width:0}x{infoAgain.ClientSize.Height:0}, expected {infoSize.Width:0}x{infoSize.Height:0}");
+        infoAgain.Sizer.Reset();
+        infoAgain.Close();
+        var settings = new SettingsWindow(window);
+        settings.Show();
+        await Settle();
+        if (settings.CanResize) failures.Add("Resize: the Settings window should keep its fixed size");
+        settings.Close();
+        await Settle();
+        log.AppendLine($"Resize Info: {InfoWindow.SmallestWidth:0}x{InfoWindow.SmallestHeight:0} to {infoSize.Width:0}x{infoSize.Height:0}, remembered after closing");
+    }
+
+    /// <summary>The wanted size, made to fit the screen the window is on: a remembered size never opens larger than its screen.</summary>
+    private static Size OnScreen(Window window, double width, double height)
+    {
+        if (window.Screens.ScreenFromWindow(window) is not { } screen) return new Size(width, height);
+        var scale = screen.Scaling > 0 ? screen.Scaling : 1;
+        return new Size(Math.Min(width, screen.WorkingArea.Width / scale), Math.Min(height, screen.WorkingArea.Height / scale - 40));
     }
 
     /// <summary>The Copy button of the Change a password window.</summary>
@@ -430,10 +664,11 @@ public static class SmokeTest
     private static Task Settle() => Task.Delay(350);
 
     /// <summary>Fails when a control sticks out of the window or got less room than it needs. Returns the window height.</summary>
-    private static double Check(Window window, string name, List<string> failures)
+    private static double Check(Window window, string name, List<string> failures, bool limitHeight = true)
     {
         var size = window.ClientSize;
-        if (size.Height > MaxHeight) failures.Add($"{name}: the window is {size.Height:0} high, more than {MaxHeight:0}");
+        // The limit is for the size a window opens with; a window the user made larger may be higher.
+        if (limitHeight && size.Height > MaxHeight) failures.Add($"{name}: the window is {size.Height:0} high, more than {MaxHeight:0}");
         foreach (var control in window.GetVisualDescendants().OfType<Control>())
         {
             if (control is not (TextBlock or Button or ToggleSwitch or Slider or ProgressBar or CheckBox or RadioButton)) continue;

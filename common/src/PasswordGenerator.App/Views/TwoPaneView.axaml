@@ -77,7 +77,7 @@
 
       <Border Classes="pwdbox" MinHeight="150" Padding="20,16">
         <Panel>
-          <ItemsControl ItemsSource="{Binding Chars}">
+          <ItemsControl x:Name="PwdList" ItemsSource="{Binding Chars}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <WrapPanel />
@@ -85,7 +85,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CharVm">
-                <TextBlock Classes="pwd" Classes.digit="{Binding IsDigit}" Classes.symbol="{Binding IsSymbol}" FontSize="28" Text="{Binding Text}" />
+                <TextBlock Classes="pwd" Classes.digit="{Binding IsDigit}" Classes.symbol="{Binding IsSymbol}" Text="{Binding Text}" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

@@ -10,7 +10,11 @@ namespace PasswordGenerator.App.Views;
 
 public partial class ChangePasswordWindow : Window
 {
+    /// <summary>The window's smallest (and first) width.</summary>
+    public const double SmallestWidth = 980;
+
     private readonly ChangePasswordViewModel _vm;
+    private readonly WindowSizer _sizer;
 
     // The XAML loader needs a constructor without arguments.
     public ChangePasswordWindow() : this(new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion)) { }
@@ -18,6 +22,13 @@ public partial class ChangePasswordWindow : Window
     public ChangePasswordWindow(MainViewModel main, IKeyboardTyper? typer = null, ClipboardGuard? clipboard = null)
     {
         InitializeComponent();
+        _sizer = new WindowSizer(this, Root);
+        _sizer.Use(WindowPlacements.ChangeKey, SmallestWidth);
+        Closing += (_, _) =>
+        {
+            _sizer.Save();
+            AppState.Save();
+        };
         clipboard ??= AppState.CopyGuard ?? new ClipboardGuard(PasswordClipboard.Create(
             () => TryGetPlatformHandle()?.Handle ?? IntPtr.Zero, () => Clipboard));
         _vm = new ChangePasswordViewModel(main, AppState.CurrentPasswordStore(), typer ?? KeyboardTyper.Create(),
@@ -54,4 +65,7 @@ public partial class ChangePasswordWindow : Window
     }
 
     public ChangePasswordViewModel ViewModel => _vm;
+
+    /// <summary>Resizing, the smallest size and the remembered placement of this window.</summary>
+    public WindowSizer Sizer => _sizer;
 }

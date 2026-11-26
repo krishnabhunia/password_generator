@@ -6,6 +6,7 @@ namespace PasswordGenerator.Core;
 public sealed record AppSettings
 {
     public const string DefaultDesign = "TwoPaneLight";
+    private const int MaxWindows = 32;
     public static readonly IReadOnlyList<string> Designs = new[] { "TwoPaneLight", "TwoPaneDark", "FluentLight", "Compact" };
 
     /// <summary>One of <see cref="Designs"/>. Two-pane Light is the default.</summary>
@@ -23,6 +24,8 @@ public sealed record AppSettings
     public int TabDelayMs { get; init; } = TypingDelays.DefaultKeyMs;
     /// <summary>Seconds a password copied in the Change a password window stays on the clipboard; 0 is Off.</summary>
     public int ClipboardClearSeconds { get; init; } = ClipboardClear.DefaultSeconds;
+    /// <summary>Size, position and maximized state of the resizable windows, by window name. Null until one was closed.</summary>
+    public IReadOnlyDictionary<string, WindowPlacement>? Windows { get; init; }
 
     public TypingDelays Delays() => new TypingDelays(CharDelayMs, TabDelayMs).Normalized();
 
@@ -34,6 +37,8 @@ public sealed record AppSettings
         CharDelayMs = Delays().CharMs,
         TabDelayMs = Delays().KeyMs,
         ClipboardClearSeconds = ClipboardClear.Normalize(ClipboardClearSeconds),
+        Windows = Windows?.Where(w => !string.IsNullOrEmpty(w.Key) && w.Value is not null).Take(MaxWindows)
+            .ToDictionary(w => w.Key, w => w.Value.Normalized()),
     };
 }
 

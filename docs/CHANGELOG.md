@@ -1,5 +1,13 @@
 # What's new
 
+## 1.4.0
+- The main window and the Change a password window can now be resized and maximized.
+- A wider window gives the extra room to the right side: the generated password, or the typing order.
+- The generated password's text grows with the window, up to one and a half times its size.
+- The smallest size is the size the windows had before, so nothing is cut off.
+- Size, position and the maximized state are remembered after a restart.
+- The Info window can be resized too.
+
 ## 1.3.0
 - Change a password: new Copy button for the new password, between Show/Hide and New, so you can paste it into Notepad or anywhere else. Ctrl+Shift+C does the same.
 - The button reads Copied for 2 seconds, and a line under the password says when it leaves the clipboard.
