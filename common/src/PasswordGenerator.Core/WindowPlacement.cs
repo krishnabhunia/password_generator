@@ -46,9 +46,13 @@ public static class WindowPlacements
     /// is inside a screen from top to bottom, and a good piece of it from left to right. A window saved on a
     /// monitor that is no longer there fails this and opens centred.
     /// </summary>
-    public static bool IsReachable(WindowPlacement placement, double width, IEnumerable<ScreenArea> screens)
+    public static bool IsReachable(WindowPlacement placement, double width, IEnumerable<ScreenArea> screens) =>
+        ScreenFor(placement, width, screens) is not null;
+
+    /// <summary>The first screen on which a window of this width at the saved position can be reached; null when there is none.</summary>
+    public static ScreenArea? ScreenFor(WindowPlacement placement, double width, IEnumerable<ScreenArea> screens)
     {
-        if (!placement.HasPosition) return false;
+        if (!placement.HasPosition) return null;
         foreach (var screen in screens)
         {
             var scale = screen.Scaling > 0 && double.IsFinite(screen.Scaling) ? screen.Scaling : 1;
@@ -59,9 +63,9 @@ public static class WindowPlacements
             long right = Math.Min(placement.X + (long)Math.Ceiling(Math.Max(width, 1) * scale), screen.X + (long)screen.Width);
             if (right - left < needed) continue;
             if (placement.Y < screen.Y - slack || placement.Y > screen.Y + (long)screen.Height - titleBar) continue;
-            return true;
+            return screen;
         }
-        return false;
+        return null;
     }
 
     /// <summary>The largest size (in the window's own units) that still fits the screen the window opens on.</summary>

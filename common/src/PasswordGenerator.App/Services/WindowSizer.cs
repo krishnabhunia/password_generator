@@ -27,6 +27,8 @@ public sealed class WindowSizer
     private bool _auto = true;
     private double _wantedHeight;
     private bool _stateChanging;
+    private bool _applyOnRestore;
+    private int _stateChanges;
     private bool _placed;
 
     /// <param name="host">The window's content when its height follows the content; null for a window with a fixed smallest height.</param>
@@ -42,27 +44,42 @@ public sealed class WindowSizer
             // too (snapping with Win + arrow). Other systems do not label resizes; there only a labelled drag counts.
             var byUser = e.Reason == WindowResizeReason.User
                 || (e.Reason == WindowResizeReason.Unspecified && OperatingSystem.IsWindows());
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (byUser) UserResized();
-                Record();
-            });
+            RecordLater(byUser);
         };
-        window.PositionChanged += (_, _) => Dispatcher.UIThread.Post(Record);
+        window.PositionChanged += (_, _) => RecordLater(byUser: false);
         window.Opened += (_, _) => { EnsureMinimum(); Record(); };
         window.PropertyChanged += (_, e) =>
         {
             if (e.Property != Window.WindowStateProperty) return;
             // Maximizing and restoring resize the window too; those sizes are not the user's own height.
             _stateChanging = true;
+            _stateChanges++;
             Dispatcher.UIThread.Post(() =>
             {
                 _stateChanging = false;
+                if (_applyOnRestore && _window.WindowState == WindowState.Normal) ApplySize();
+                else Record();
                 EnsureMinimum();
-                Record();
             });
         };
         if (host is not null) host.NaturalHeightChanged += EnsureMinimum;
+    }
+
+    /// <summary>
+    /// Records size and position a moment later. A resize or move that belongs to maximizing, minimizing or
+    /// restoring is left out, whichever the system reports first, the new size or the new state: the handler
+    /// of the state change does the recording then.
+    /// </summary>
+    private void RecordLater(bool byUser)
+    {
+        var during = _stateChanging;
+        var changes = _stateChanges;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (during || changes != _stateChanges) return;
+            if (byUser) UserResized();
+            Record();
+        });
     }
 
     /// <summary>
@@ -110,6 +127,7 @@ public sealed class WindowSizer
     public void Resize(double width, double height)
     {
         if (_window.WindowState != WindowState.Normal) _window.WindowState = WindowState.Normal;
+        _applyOnRestore = false;
         _auto = false;
         _wantedHeight = height;
         _window.SizeToContent = SizeToContent.Manual;
@@ -132,42 +150,31 @@ public sealed class WindowSizer
         var width = Math.Max(saved?.Width ?? 0, _minWidth);
         var height = saved?.Height ?? 0; // 0: the height follows the content
         if (_host is null) height = Math.Max(height, _minHeight);
-        var reachable = saved is not null && WindowPlacements.IsReachable(saved, width, screens);
+        // The screen is chosen with the window's real width, the same way the position is judged.
+        var home = saved is null ? null : WindowPlacements.ScreenFor(saved, width, screens);
 
         // A size saved on a larger screen must not be larger than the screen it opens on now.
         if (screens.Count > 0)
         {
-            var screen = reachable ? ScreenAt(saved!, screens) : screens[0];
-            var fitted = WindowPlacements.FitInto(width, height + TitleBar, screen);
-            fitted = (fitted.Width, fitted.Height - TitleBar);
+            var fitted = WindowPlacements.FitInto(width, height + TitleBar, home ?? screens[0]);
             width = Math.Max(fitted.Width, _minWidth);
-            if (height > 0) height = Math.Max(fitted.Height, _host is null ? _minHeight : 0);
+            if (height > 0) height = Math.Max(fitted.Height - TitleBar, _host is null ? _minHeight : 0);
         }
 
-        // A maximized window keeps its size; the smallest size is applied when it is restored.
-        if (!(_placed && _window.WindowState == WindowState.Maximized))
-        {
-            _auto = _host is not null && height <= 0;
-            if (_auto)
-            {
-                _window.Width = width;
-                FollowContent();
-            }
-            else
-            {
-                _window.SizeToContent = SizeToContent.Manual;
-                _window.Width = width;
-                // The content's own height is not known yet (a new design is not laid out); EnsureMinimum corrects it after the layout.
-                _window.Height = Math.Max(height, _host is null ? _minHeight : 0);
-            }
-            _wantedHeight = height;
-            _normalSize = new Size(width, height);
-            _normalAuto = _auto;
-        }
+        // What the window goes back to when it is not maximized. This is also what gets saved, so a design
+        // chosen while the window is maximized keeps its own remembered size.
+        _auto = _host is not null && height <= 0;
+        _wantedHeight = height;
+        _normalSize = new Size(width, height);
+        _normalAuto = _auto;
+
+        // A maximized window stays maximized; the size is applied when it is restored.
+        if (_placed && _window.WindowState != WindowState.Normal) _applyOnRestore = true;
+        else ApplySize();
 
         if (_placed) return;
         _placed = true;
-        if (reachable)
+        if (home is not null)
         {
             _window.WindowStartupLocation = WindowStartupLocation.Manual;
             _window.Position = new PixelPoint(saved!.X, saved.Y);
@@ -177,10 +184,27 @@ public sealed class WindowSizer
         if (saved?.Maximized == true) _window.WindowState = WindowState.Maximized;
     }
 
+    /// <summary>Gives the window the size it should have when it is not maximized.</summary>
+    private void ApplySize()
+    {
+        _applyOnRestore = false;
+        if (_auto)
+        {
+            _window.Width = _normalSize.Width;
+            FollowContent();
+            return;
+        }
+        _window.SizeToContent = SizeToContent.Manual;
+        _window.Width = _normalSize.Width;
+        // The content's own height may not be known yet (a new design is not laid out); EnsureMinimum corrects it after the layout.
+        _window.Height = Math.Max(_wantedHeight, _host is null ? _minHeight : 0);
+    }
+
     /// <summary>Remembers size and position while the window is neither maximized nor minimized.</summary>
     private void Record()
     {
-        if (!_window.IsVisible || _window.WindowState != WindowState.Normal) return;
+        // While a size waits to be applied on restore, the fields already hold what must be saved.
+        if (_applyOnRestore || !_window.IsVisible || _window.WindowState != WindowState.Normal) return;
         _normalSize = _window.ClientSize;
         _normalPosition = _window.Position;
         _hasPosition = true;
@@ -247,12 +271,5 @@ public sealed class WindowSizer
         {
             return Array.Empty<ScreenArea>();
         }
-    }
-
-    private static ScreenArea ScreenAt(WindowPlacement placement, IReadOnlyList<ScreenArea> screens)
-    {
-        foreach (var screen in screens)
-            if (WindowPlacements.IsReachable(placement, 1, new[] { screen })) return screen;
-        return screens[0];
     }
 }

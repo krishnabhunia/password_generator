@@ -413,7 +413,30 @@ public static class SmokeTest
             vm.UpdateText = null;
             await Settle();
             if (Math.Abs(window.ClientSize.Height - before.Height) > 1) failures.Add("Maximized: after restoring, the window no longer shrinks with its content");
-            log.AppendLine($"Maximize: {before.Width:0}x{before.Height:0} to {maximized.Width:0}x{maximized.Height:0} and back");
+
+            // A design chosen while the window is maximized keeps its own size: nothing of the design before it is saved under its name.
+            var compact = DesignInfo.All.First(d => d.Id == "Compact");
+            window.WindowState = WindowState.Maximized;
+            await Settle();
+            await Settle();
+            window.ApplyDesign(compact.Id);
+            await Settle();
+            if (window.WindowState != WindowState.Maximized) failures.Add("Maximized: choosing another design ended the maximized state");
+            Check(window, "Maximized Compact", failures, limitHeight: false);
+            window.Sizer.Save();
+            var savedCompact = AppState.Settings.Windows?.GetValueOrDefault(WindowPlacements.MainKey(compact.Id));
+            if (savedCompact is not { Maximized: true } || Math.Abs(savedCompact.Width - compact.Width) > 1 || savedCompact.Height != 0)
+                failures.Add($"Maximized: Compact, chosen while maximized, was saved as {savedCompact?.Width:0}x{savedCompact?.Height:0}, expected {compact.Width:0} wide with the height following the content");
+            window.WindowState = WindowState.Normal;
+            await Settle();
+            await Settle();
+            if (Math.Abs(window.ClientSize.Width - compact.Width) > 1 || Math.Abs(window.ClientSize.Height - window.Sizer.SmallestHeight) > 1 || !window.Sizer.FollowsContent)
+                failures.Add($"Maximized: restoring in Compact gave {window.ClientSize.Width:0}x{window.ClientSize.Height:0}, expected {compact.Width:0}x{window.Sizer.SmallestHeight:0} following the content");
+            var compactSize = window.ClientSize;
+            window.Sizer.Reset();
+            window.ApplyDesign(DesignInfo.All[0].Id);
+            await Settle();
+            log.AppendLine($"Maximize: {before.Width:0}x{before.Height:0} to {maximized.Width:0}x{maximized.Height:0} and back; Compact chosen while maximized restores to {compactSize.Width:0}x{compactSize.Height:0}");
         }
         else if (OperatingSystem.IsWindows())
         {

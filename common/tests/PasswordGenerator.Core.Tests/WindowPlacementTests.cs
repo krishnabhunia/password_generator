@@ -64,6 +64,21 @@ public class WindowPlacementTests
     }
 
     [Fact]
+    public void The_screen_is_chosen_with_the_real_width()
+    {
+        // A wide window just left of the border between two screens belongs to the right-hand one:
+        // only 8 of its pixels are on the primary screen.
+        var primary = new ScreenArea(0, 0, 1280, 720);
+        var secondary = new ScreenArea(1280, 0, 1920, 1040);
+        var saved = new WindowPlacement { X = 1272, Y = 100, HasPosition = true, Width = 1800, Height = 900 };
+        Assert.Equal(secondary, WindowPlacements.ScreenFor(saved, 1800, new[] { primary, secondary }));
+        Assert.Equal((1800, 900), WindowPlacements.FitInto(1800, 900, secondary));
+        Assert.Equal(primary, WindowPlacements.ScreenFor(saved with { X = 200 }, 1800, new[] { primary, secondary }));
+        Assert.Null(WindowPlacements.ScreenFor(saved with { X = 5000 }, 1800, new[] { primary, secondary }));
+        Assert.Null(WindowPlacements.ScreenFor(saved with { HasPosition = false }, 1800, new[] { primary, secondary }));
+    }
+
+    [Fact]
     public void A_saved_size_is_fitted_into_a_smaller_screen()
     {
         Assert.Equal((1920, 1040), WindowPlacements.FitInto(2400, 1300, Laptop));
