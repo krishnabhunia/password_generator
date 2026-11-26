@@ -61,7 +61,7 @@ public static class InfoContent
         - Every password that fits your choices (length, elements, minimum of each) is equally likely.
         - The strength figure is log2 of the number of different passwords your choices allow, shown in bits. Asking for many of one element lowers it.
         ## What is stored
-        - Your choices (elements, minimums, length, design, update options) are saved in the settings file.
+        - Your choices (elements, minimums, length, design, update options) and the size and place of the windows are saved in the settings file.
         - Generated passwords are never written to disk. Copy puts the password on the clipboard only.
         - The one exception is the current password you paste into the Change a password window. It is stored in the file current.bin next to the settings, encrypted by Windows (DPAPI) for your sign-in, so only your Windows account on this PC can read it. Forget it deletes the file.
         - No password is ever sent anywhere.

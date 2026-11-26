@@ -1,17 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PasswordGenerator.App.ViewModels"
+        xmlns:v="using:PasswordGenerator.App.Views"
         x:Class="PasswordGenerator.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Password Generator"
         Icon="/Assets/app.ico"
         Width="980"
         SizeToContent="Height"
-        CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Pg.WindowBg}"
         Foreground="{DynamicResource Pg.Text}"
         FontSize="14">
+  <!-- Resizable: the host tells the window how high the content needs to be (see WindowSizer). -->
+  <v:NaturalHeightHost x:Name="Root">
   <DockPanel>
     <!-- Shown only when a newer version was found on GitHub -->
     <Border DockPanel.Dock="Top" IsVisible="{Binding UpdateVisible}" Background="{DynamicResource Pg.PaneBg}"
@@ -51,4 +53,5 @@
 
     <ContentControl x:Name="DesignHost" />
   </DockPanel>
+  </v:NaturalHeightHost>
 </Window>

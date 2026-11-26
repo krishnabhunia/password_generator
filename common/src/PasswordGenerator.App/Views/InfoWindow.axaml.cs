@@ -7,16 +7,30 @@ namespace PasswordGenerator.App.Views;
 
 public partial class InfoWindow : Window
 {
+    /// <summary>The window's smallest (and first) size.</summary>
+    public const double SmallestWidth = 620;
+    public const double SmallestHeight = 560;
+
     private readonly IReadOnlyList<InfoRow> _rows = InfoContent.BuildRows();
+    private readonly WindowSizer _sizer;
 
     public InfoWindow()
     {
         InitializeComponent();
+        _sizer = new WindowSizer(this);
+        _sizer.Use(Core.WindowPlacements.InfoKey, SmallestWidth, SmallestHeight);
+        Closing += (_, _) =>
+        {
+            _sizer.Save();
+            AppState.Save();
+        };
         BuildRows.ItemsSource = _rows;
         FeatureLines.ItemsSource = DocLine.Parse(BuildInfo.ReadDoc("FEATURES.md"));
         NewsLines.ItemsSource = DocLine.Parse(BuildInfo.ReadDoc("CHANGELOG.md"));
         HoodLines.ItemsSource = DocLine.Parse(InfoContent.UnderTheHood);
     }
+
+    public WindowSizer Sizer => _sizer;
 
     public int TabCount => Tabs.ItemCount;
 

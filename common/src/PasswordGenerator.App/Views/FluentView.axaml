@@ -10,7 +10,7 @@
     <Border Classes="card">
       <StackPanel Spacing="10">
         <Panel MinHeight="62">
-          <ItemsControl ItemsSource="{Binding Chars}">
+          <ItemsControl x:Name="PwdList" ItemsSource="{Binding Chars}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <WrapPanel />
@@ -18,7 +18,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CharVm">
-                <TextBlock Classes="pwd" Classes.digit="{Binding IsDigit}" Classes.symbol="{Binding IsSymbol}" FontSize="22" Text="{Binding Text}" />
+                <TextBlock Classes="pwd" Classes.digit="{Binding IsDigit}" Classes.symbol="{Binding IsSymbol}" Text="{Binding Text}" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

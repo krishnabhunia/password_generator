@@ -40,6 +40,14 @@
 - Compact: a small window with element tiles.
 - The design is chosen in Settings and changes straight away.
 
+## Window size
+- The main window and the Change a password window can be resized by dragging an edge, and maximized.
+- When a window gets wider, the left side keeps its width and the right side takes the extra room: the generated password in the main window, the typing order in the Change a password window. The one-column designs stretch across the window.
+- The generated password's text grows with the window, up to one and a half times its size.
+- No window can be made smaller than its content needs, so nothing is ever cut off.
+- Size, position and the maximized state are remembered after a restart, for each design separately. A window whose remembered place is no longer on any screen opens centred.
+- The Info window can be resized and maximized too. Settings and messages keep their size.
+
 ## Settings and updates
 - Your choices and the design are remembered between runs.
 - The app checks GitHub for a newer version at every start.

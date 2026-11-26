@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private readonly UpdateService _updates = new();
     private bool _closingForUpdate;
     private ChangePasswordWindow? _changeWindow;
+    private readonly WindowSizer _sizer;
 
     // The XAML loader needs a constructor without arguments.
     public MainWindow() : this(new MainViewModel(AppState.Settings.Options, BuildInfo.DisplayVersion)) { }
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel vm)
     {
         InitializeComponent();
+        _sizer = new WindowSizer(this, Root);
         _vm = vm;
         DataContext = vm;
         vm.CopyHandler = text => Clipboard is { } clipboard ? clipboard.SetTextAsync(text) : Task.CompletedTask;
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
         };
         Closing += (_, _) =>
         {
+            _sizer.Save();
             AppState.Save();
             // A password copied in the Change a password window must not outlive the app. On Windows this
             // finishes before the call returns; elsewhere it is a best effort.
@@ -59,12 +62,16 @@ public partial class MainWindow : Window
 
     public UpdateService Updates => _updates;
 
+    /// <summary>Resizing, the smallest size and the remembered placement of this window.</summary>
+    public WindowSizer Sizer => _sizer;
+
     public void ApplyDesign(string id)
     {
         var design = DesignInfo.Find(id);
         (Avalonia.Application.Current as App)?.ApplyPalette(design);
-        Width = design.Width;
         DesignHost.Content = design.CreateView();
+        // Every design has its own smallest size and its own remembered size.
+        _sizer.Use(Core.WindowPlacements.MainKey(design.Id), design.Width);
         AppState.Settings = AppState.Settings with { Design = design.Id };
     }
 
